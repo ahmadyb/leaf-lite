@@ -19,7 +19,7 @@ object Formatters {
         if (millis <= 0L) return ""
         return when {
             DateUtils.isToday(millis) -> "Today, ${timeFormat(context).format(millis)}"
-            daysAgo(millis) == 1 -> "Yesterday"
+            daysAgo(millis) == 1L -> "Yesterday"
             System.currentTimeMillis() - millis < WEEK_MS -> weekday(millis)
             else -> DateUtils.formatDateTime(
                 context,

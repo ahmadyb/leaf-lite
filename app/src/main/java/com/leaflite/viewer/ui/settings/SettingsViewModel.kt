@@ -11,9 +11,9 @@ import kotlinx.coroutines.withContext
 /** Settings tab: the three viewing switches plus the "About" values. */
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val repository: DocumentRepository = (app as LeafLiteApp).repository
-    private val app: LeafLiteApp = app as LeafLiteApp
-    private val prefs: Prefs = app.prefs
+    private val leafApp: LeafLiteApp = app as LeafLiteApp
+    private val repository: DocumentRepository = leafApp.repository
+    private val prefs: Prefs = leafApp.prefs
 
     /** Document count + last scan time, read off the main thread. */
     suspend fun summary(): Pair<Int, Long> = withContext(Dispatchers.IO) {
@@ -24,7 +24,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         get() = prefs.nightMode
         set(value) {
             prefs.nightMode = value
-            app.applyNightMode()
+            leafApp.applyNightMode()
         }
 
     var keepScreenOn: Boolean
@@ -41,7 +41,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     val versionName: String
         get() = try {
-            val info = app.packageManager.getPackageInfo(app.packageName, 0)
+            val info = leafApp.packageManager.getPackageInfo(leafApp.packageName, 0)
             info.versionName ?: "1.0.0"
         } catch (t: Throwable) {
             "1.0.0"
@@ -49,7 +49,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     val versionCode: Long
         get() = try {
-            val info = app.packageManager.getPackageInfo(app.packageName, 0)
+            val info = leafApp.packageManager.getPackageInfo(leafApp.packageName, 0)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 info.longVersionCode
             } else {

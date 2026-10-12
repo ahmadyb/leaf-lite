@@ -13,7 +13,7 @@ import androidx.core.content.ContextCompat
 fun View.dp(value: Float): Float = value * resources.displayMetrics.density
 
 /** dp -> px (rounded). */
-fun View.dpInt(value: Float): Int = (value * resources.displayMetrics.density).roundToInt()
+fun View.dpInt(value: Float): Int = (value * resources.displayMetrics.density).round()
 
 private fun Float.round(): Int = (this + 0.5f).toInt()
 
