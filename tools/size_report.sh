@@ -32,8 +32,10 @@ set -E
 
 # --- diagnostics -------------------------------------------------------------
 annotate() {  # ::error:: into the Checks API (and stderr for terminals)
-    echo "::error::$*" >&2
-    echo "size_report: $*" >&2
+    local msg="$*"
+    msg="${msg//$'\n'/ | }"
+    echo "::error::$msg" >&2
+    echo "size_report: $msg" >&2
 }
 die() { annotate "$*"; exit 1; }
 on_err() {
@@ -137,16 +139,24 @@ UNIVERSAL_APK="$OUT/universal.apk"
 UNIVERSAL_FILE_SIZE="$(bytes_of "$UNIVERSAL_APK")"
 UNIVERSAL_DOWNLOAD_SIZE="$("$APKANALYZER" apk download-size "$UNIVERSAL_APK" | tr -cd '0-9')"
 
-# bundletool get-size total prints a line like
-#   "2,512,252 bytes minimum, 4,826,341 bytes maximum"
+# bundletool get-size total prints either the CSV form
+#   MIN,MAX
+#   2512252,4826341
+# or a human line "2,512,252 bytes minimum, 4,826,341 bytes maximum".
 SIZE_RANGE="$(java -jar "$BUNDLETOOL" get-size total --apks="$OUT/device.apks" || true)"
-RANGE_LINE="$(printf '%s\n' "$SIZE_RANGE" | grep -m1 -E 'minimum|max' || true)"
-AAB_MIN="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | head -1 | tr -d ',' || true)"
-AAB_MAX="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | tail -1 | tr -d ',' || true)"
+if printf '%s\n' "$SIZE_RANGE" | grep -q 'MIN,MAX'; then
+    DATA_LINE="$(printf '%s\n' "$SIZE_RANGE" | grep -m1 -E '^[0-9][0-9,]*,[0-9]' || true)"
+    AAB_MIN="$(printf '%s' "$DATA_LINE" | awk -F, '{print $1}' | tr -cd '0-9')"
+    AAB_MAX="$(printf '%s' "$DATA_LINE" | awk -F, '{print $2}' | tr -cd '0-9')"
+else
+    RANGE_LINE="$(printf '%s\n' "$SIZE_RANGE" | grep -m1 'minimum' || true)"
+    AAB_MIN="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | head -1 | tr -d ',' || true)"
+    AAB_MAX="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | tail -1 | tr -d ',' || true)"
+fi
 AAB_MIN="${AAB_MIN:-0}"
 AAB_MAX="${AAB_MAX:-0}"
 if [ "$AAB_MAX" -eq 0 ]; then
-    die "could not parse bundletool get-size output: '$SIZE_RANGE'"
+    die "could not parse bundletool get-size output: $(printf '%s' "$SIZE_RANGE" | tr '\n' '|')"
 fi
 
 # Installed footprint: the uncompressed payload plus the runtime artefacts the
