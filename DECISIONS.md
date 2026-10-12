@@ -267,3 +267,55 @@ non-English UI. In addition:
 | --- | --- | --- |
 | `samples/*.pdf/.docx/.xlsx/.txt/.md` | `tools/make_samples.py` | The five Appendix D fixtures are reproducible from source (stdlib + Pillow only) and stay tiny in git. |
 | `app/src/main/res/mipmap-*/ic_launcher*.png` | `tools/make_launcher_icons.py` | Same artwork as the adaptive vector, rasterised with a self-contained path renderer (arcs → cubic béziers → polylines). |
+
+---
+
+## 10. Build automation (CI) and size reporting
+
+The authoring sandbox has no Android SDK (§0), so the repository is built for
+real on GitHub Actions — `.github/workflows/android.yml`, `ubuntu-latest`,
+Temurin JDK 17 (AGP 8.13 requires JDK 17).
+
+**Jobs and order.** `build` runs `tools/verify_project.py`, then one Gradle
+invocation for `testReleaseUnitTest lintRelease assembleDebug assembleRelease
+bundleRelease` (single configuration pass, shared build cache), then
+`tools/size_report.sh`, then uploads artefacts. `smoke-test` (needs `build`)
+runs `connectedDebugAndroidTest` on an **API 23 emulator** — the minSdk floor is
+where compatibility breaks would appear, and the smoke test is device-agnostic.
+`release` runs only on `v*` tags and publishes the bits with `gh release
+create`.
+
+**Wrapper integrity.** `gradle/actions/wrapper-validation@v6` is enabled. The
+wrapper jar committed at `gradle/wrapper/gradle-wrapper.jar` has sha256
+`81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f`, which is
+the **official** Gradle 8.13 wrapper checksum in the action's allow-list —
+verified against `gradle/actions`' `wrapper-checksums.json` before wiring the
+step in (the jar is byte-identical to `gradle/wrapper/gradle-wrapper.jar` at
+`gradle/gradle` tag `v8.13.0`).
+
+**Size reporting — `tools/size_report.sh`.** One script produces every number
+§14 asks for and enforces the budgets (exit 1 on breach, `STRICT=0` to warn
+only):
+
+* universal APK **file size** and **download size** via `apkanalyzer` (budget
+  8 MB each);
+* AAB **download size min..max** via `bundletool build-apks` +
+  `get-size total` across all device configurations (budget 5 MB max);
+* **installed footprint** estimated as the uncompressed APK payload
+  ×1.0–1.2 (the 20 % upper bound is the oat/vdex allowance). Rationale: a true
+  on-device `du` measurement needs a device; the estimate is deterministic and
+  conservative, and the emulator smoke job proves the app installs on the
+  floor API. The `adb` commands for a manual measurement are in `README.md`;
+* **hard contract gates**: minSdk must be exactly 23 and the manifest must
+  contain zero `android.permission.INTERNET`, regardless of sizes.
+
+**Signing on CI.** No signing secrets exist on the runner, so
+`app/build.gradle.kts`' existing fallback applies: the release APK is signed
+with the Gradle **debug keystore** (AGP generates `~/.android/debug.keystore`
+on the runner). That makes CI APKs installable for QA but **not Play-eligible**;
+production signing is the documented `keystore.properties` route. This is
+deliberate: no key material is ever stored in the repository or workflow.
+
+**Action versions.** Pinned to the current majors at the time of writing
+(checkout v7, setup-java v6, upload-artifact v7, download-artifact v8,
+gradle/actions v6, android-emulator-runner v2).

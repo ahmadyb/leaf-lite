@@ -73,24 +73,33 @@ downloads what it needs).
 
 ### Size budget
 
+One command produces every §14 number and **fails the build on a budget
+breach** (it also asserts minSdk 23 and the absence of the INTERNET
+permission):
+
+```bash
+ANDROID_HOME=$HOME/Android/Sdk bash tools/size_report.sh
+# writes build/size/size-report.txt and prints the table
+```
+
+The same script runs in CI on every push (see *Continuous integration*), so the
+numbers in the `leaf-lite-size-report` artefact are always current. Under the
+hood it runs exactly these measurements:
+
 ```bash
 # universal APK
-$ANDROID_HOME/build-tools/36.0.0/apkanalyzer apk size app/build/outputs/apk/release/app-release.apk
-$ANDROID_HOME/build-tools/36.0.0/apkanalyzer apk download-size app/build/outputs/apk/release/app-release.apk
+apkanalyzer apk file-size     app/build/outputs/apk/release/app-release.apk
+apkanalyzer apk download-size app/build/outputs/apk/release/app-release.apk
 
-# Play bundle
+# Play bundle (per-device download size range)
 bundletool build-apks --bundle=app/build/outputs/bundle/release/app-release.aab \
-    --output=/tmp/leaflite.apks --ks=<keystore> ...
-bundletool get-size total --apks=/tmp/leaflite.apks
+    --output=build/size/device.apks --ks=<keystore> ...
+bundletool get-size total --apks=build/size/device.apks
 
 # on-device footprint after a first scan
 adb install app/build/outputs/apk/release/app-release.apk
 adb shell du -sh /data/app/*com.leaflite.viewer* /data/data/com.leaflite.viewer
 ```
-
-Expected (see `DECISIONS.md` §0/§7 for why these are estimates, not measurements
-from CI): **~2.5–3.5 MB** universal APK, **~1.8–2.8 MB** AAB download,
-**~7–10 MB** installed.
 
 ### Tests
 
@@ -99,6 +108,29 @@ from CI): **~2.5–3.5 MB** universal APK, **~1.8–2.8 MB** AAB download,
 ./gradlew :app:connectedDebugAndroidTest  # device: install + no-INTERNET smoke test
 python3 tools/verify_project.py           # static consistency check (no SDK needed)
 ```
+
+### Continuous integration
+
+`.github/workflows/android.yml` builds the real artefacts on every push and
+pull request (GitHub-hosted `ubuntu-latest`, Temurin JDK 17):
+
+| job | what it does |
+| --- | --- |
+| `build` | `tools/verify_project.py`, JVM unit tests, lint, `assembleDebug` + `assembleRelease` + `bundleRelease`, `tools/size_report.sh` (fails over budget), uploads artefacts |
+| `smoke-test` | API 23 emulator (the minSdk floor): install + no-INTERNET + document-registry smoke test |
+| `release` | on a `v*` tag: publishes a GitHub Release with the APK, AAB, size report, checksums and R8 mapping |
+
+Download the artefacts from the workflow run page:
+
+| artefact | contents |
+| --- | --- |
+| `leaf-lite-release-apk` | `leaf-lite-1.0.0-release.apk` — installable universal APK |
+| `leaf-lite-release-aab` | `leaf-lite-1.0.0-release.aab` — Play upload bundle |
+| `leaf-lite-debug-apk` | `leaf-lite-1.0.0-debug.apk` — `.debug` applicationId |
+| `leaf-lite-size-report` | `size-report.txt`, `SHA256SUMS.txt`, R8 `mapping.txt` |
+
+To cut a release: `git tag v1.0.0 && git push origin v1.0.0` — CI attaches the
+signed bits to the GitHub Release once the build and smoke test pass.
 
 ---
 
