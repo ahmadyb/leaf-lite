@@ -23,8 +23,25 @@
 #
 # Exits 1 when a budget is exceeded, so CI can fail loudly on a size
 # regression. Set STRICT=0 to only warn.
+#
+# Every failure is also emitted as a GitHub Actions ::error:: annotation so it
+# is visible on the run page even when the log is unavailable.
 # -----------------------------------------------------------------------------
 set -euo pipefail
+set -E
+
+# --- diagnostics -------------------------------------------------------------
+annotate() {  # ::error:: into the Checks API (and stderr for terminals)
+    echo "::error::$*" >&2
+    echo "size_report: $*" >&2
+}
+die() { annotate "$*"; exit 1; }
+on_err() {
+    local status=$?
+    annotate "failed at line ${BASH_LINENO[0]:-$LINENO} (exit $status): $BASH_COMMAND"
+    exit "$status"
+}
+trap on_err ERR
 
 APK="${APK:-app/build/outputs/apk/release/app-release.apk}"
 AAB="${AAB:-app/build/outputs/bundle/release/app-release.aab}"
@@ -37,41 +54,42 @@ BUDGET_AAB_MB=5
 BUDGET_INSTALLED_MB=15
 
 ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-if [ -z "$ANDROID_HOME" ]; then
-    echo "size_report: ANDROID_HOME (or ANDROID_SDK_ROOT) must be set" >&2
-    exit 2
-fi
+[ -n "$ANDROID_HOME" ] || die "ANDROID_HOME (or ANDROID_SDK_ROOT) must be set"
 
 mkdir -p "$OUT"
 
 # --- toolchain ----------------------------------------------------------------
-APKANALYZER="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
-if [ ! -x "$APKANALYZER" ]; then
-    APKANALYZER="$(command -v apkanalyzer || true)"
-fi
-if [ -z "$APKANALYZER" ]; then
-    echo "size_report: apkanalyzer not found; install 'cmdline-tools;latest'" >&2
-    exit 2
-fi
+find_apkanalyzer() {
+    local candidate
+    for candidate in \
+        "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" \
+        "$ANDROID_HOME"/cmdline-tools/*/bin/apkanalyzer \
+        "$ANDROID_HOME"/build-tools/*/apkanalyzer \
+        "$(command -v apkanalyzer 2>/dev/null || true)"; do
+        if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+APKANALYZER="$(find_apkanalyzer)" || die "apkanalyzer not found under $ANDROID_HOME (install cmdline-tools;latest)"
 
 BUNDLETOOL="$OUT/bundletool.jar"
 if [ ! -f "$BUNDLETOOL" ]; then
     curl -fsSL -o "$BUNDLETOOL" \
-        "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar"
+        "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar" \
+        || die "could not download bundletool $BUNDLETOOL_VERSION"
 fi
 
 for f in "$APK" "$AAB"; do
-    if [ ! -f "$f" ]; then
-        echo "size_report: missing build output $f" >&2
-        exit 2
-    fi
+    [ -f "$f" ] || die "missing build output $f"
 done
 
 # --- helpers ------------------------------------------------------------------
 mb() { awk -v b="$1" 'BEGIN { printf "%.2f", b / 1048576 }'; }
-
-bytes_of()  { stat -c %s "$1"; }
-human_of()  { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 B"; }
+bytes_of() { stat -c %s "$1"; }
+human_of() { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 B"; }
 
 failures=0
 check_budget() { # name value_mb budget_mb
@@ -89,15 +107,15 @@ APK_DOWNLOAD_SIZE="$("$APKANALYZER" apk download-size "$APK" | tr -cd '0-9')"
 MIN_SDK="$("$APKANALYZER" manifest min-sdk "$APK" | tr -cd '0-9')"
 TARGET_SDK="$("$APKANALYZER" manifest target-sdk "$APK" | tr -cd '0-9')"
 PERMISSIONS="$("$APKANALYZER" manifest permissions "$APK" | sed '/^$/d' | tr '\n' ' ')"
+[ -n "$APK_FILE_SIZE" ] || die "apkanalyzer returned no file size for $APK"
+[ -n "$MIN_SDK" ] || die "apkanalyzer returned no minSdk for $APK"
 
 # --- contract gates (§2): minSdk 23 and zero network permissions --------------
 if [ "$MIN_SDK" != "23" ]; then
-    echo "size_report: FAIL — minSdk is '$MIN_SDK', contract requires 23" >&2
-    exit 1
+    die "minSdk is '$MIN_SDK', contract requires 23"
 fi
 if printf '%s' "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
-    echo "size_report: FAIL — INTERNET permission found in manifest" >&2
-    exit 1
+    die "INTERNET permission found in manifest"
 fi
 
 # --- 2. AAB -> device-specific APKS + universal APK ---------------------------
@@ -105,7 +123,8 @@ KS="$OUT/size-report.keystore"
 if [ ! -f "$KS" ]; then
     keytool -genkeypair -keystore "$KS" -storepass android -keypass android \
         -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-        -dname "CN=Leaf Lite Size Report, O=Leaf Lite, C=US" -noprompt >/dev/null 2>&1
+        -dname "CN=Leaf Lite Size Report, O=Leaf Lite, C=US" -noprompt >/dev/null 2>&1 \
+        || die "keytool could not create the throwaway keystore"
 fi
 KS_ARGS=(--ks="$KS" --ks-key-alias=androiddebugkey --ks-pass=pass:android --key-pass=pass:android)
 
@@ -116,16 +135,19 @@ java -jar "$BUNDLETOOL" build-apks --bundle="$AAB" --output="$OUT/universal.apks
 unzip -o -q "$OUT/universal.apks" universal.apk -d "$OUT"
 UNIVERSAL_APK="$OUT/universal.apk"
 UNIVERSAL_FILE_SIZE="$(bytes_of "$UNIVERSAL_APK")"
-UNIVERSAL_DOWNLOAD_SIZE="$("$APKANALYZER" apk download-size "$UNIVERSAL_APK")"
+UNIVERSAL_DOWNLOAD_SIZE="$("$APKANALYZER" apk download-size "$UNIVERSAL_APK" | tr -cd '0-9')"
 
-# bundletool get-size total -> line "N bytes minimum, M bytes maximum"
-# (N and M carry thousands separators, so strip commas).
-SIZE_RANGE="$(java -jar "$BUNDLETOOL" get-size total --apks="$OUT/device.apks")"
-RANGE_LINE="$(printf '%s\n' "$SIZE_RANGE" | grep -m1 minimum || true)"
-AAB_MIN="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | head -1 | tr -d ',')"
-AAB_MAX="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | tail -1 | tr -d ',')"
+# bundletool get-size total prints a line like
+#   "2,512,252 bytes minimum, 4,826,341 bytes maximum"
+SIZE_RANGE="$(java -jar "$BUNDLETOOL" get-size total --apks="$OUT/device.apks" || true)"
+RANGE_LINE="$(printf '%s\n' "$SIZE_RANGE" | grep -m1 -E 'minimum|max' || true)"
+AAB_MIN="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | head -1 | tr -d ',' || true)"
+AAB_MAX="$(printf '%s' "$RANGE_LINE" | grep -oE '[0-9][0-9,]*' | tail -1 | tr -d ',' || true)"
 AAB_MIN="${AAB_MIN:-0}"
 AAB_MAX="${AAB_MAX:-0}"
+if [ "$AAB_MAX" -eq 0 ]; then
+    die "could not parse bundletool get-size output: '$SIZE_RANGE'"
+fi
 
 # Installed footprint: the uncompressed payload plus the runtime artefacts the
 # platform generates for it (oat/vdex), budgeted as uncompressed + 20%.
@@ -190,8 +212,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
 fi
 
 if [ "$failures" -gt 0 ]; then
-    echo
-    echo "size_report: $failures size budget(s) exceeded" >&2
+    annotate "$failures size budget(s) exceeded — see the size report table"
     [ "$STRICT" = "1" ] && exit 1
 fi
 
