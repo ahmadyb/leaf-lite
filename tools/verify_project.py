@@ -182,6 +182,16 @@ def check_kotlin(path: Path) -> None:
             if not stack or stack.pop() != char:
                 error(f"{relative}: unbalanced delimiter {char!r}")
                 break
+    else:
+        if stack:
+            error(f"{relative}: {len(stack)} unclosed delimiter(s) at end of file")
+
+    # 2b. corruption: spliced/duplicated file heads leave tell-tales behind.
+    if len(re.findall(r"(?m)^package\s", raw)) > 1:
+        error(f"{relative}: multiple package declarations (spliced file?)")
+    imports = re.findall(r"(?m)^import\s+.*$", raw)
+    if len(imports) != len(set(imports)):
+        error(f"{relative}: duplicated import lines (spliced file?)")
 
     # 3. package matches folder
     package_match = re.search(r"^package\s+([\w.]+)", code, re.MULTILINE)

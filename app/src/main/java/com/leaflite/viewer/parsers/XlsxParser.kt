@@ -293,7 +293,7 @@ class XlsxParser(private val open: () -> InputStream?) {
                 else raw to false
             }
             "inlineStr", "str" -> raw to false
-            "b" -> (raw == "1" || raw.equals("TRUE", ignoreCase = true)) to false
+            "b" -> (if (raw == "1" || raw.equals("TRUE", ignoreCase = true)) "TRUE" else "FALSE") to false
             "e" -> raw to false
             else -> {
                 val number = raw.trim().toDoubleOrNull()

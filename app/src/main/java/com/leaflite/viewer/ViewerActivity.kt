@@ -16,9 +16,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.leaflite.viewer.databinding.ActivityViewerBinding
@@ -39,7 +39,9 @@ import kotlinx.coroutines.launch
 class ViewerActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityViewerBinding
-    private val viewModel: ViewerViewModel by viewModels()
+    private val viewModel: ViewerViewModel by lazy {
+        ViewModelProvider(this)[ViewerViewModel::class.java]
+    }
 
     private var pdfAdapter: PdfPageAdapter? = null
     private var sheetIndex = 0
