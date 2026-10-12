@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Leaf Lite — Multi-Type Document Viewer</title>
+<style>
+  :root{
+    --bg:#F6F8F6;
+    --card:#FFFFFF;
+    --text:#0E1A12;
+    --muted:#78897E;
+    --faint:#9DADA3;
+    --line:rgba(14,26,18,.07);
+    --accent:#1FA463;
+    --accent-soft:#E4F5EB;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:
+      radial-gradient(900px 600px at 15% 10%, #1d3a2b 0%, transparent 60%),
+      radial-gradient(700px 500px at 85% 90%, #1a2f3a 0%, transparent 55%),
+      #0b1210;
+    display:grid;
+    place-items:center;
+    padding:28px 16px 40px;
+    min-height:100%;
+  }
+  .stage{display:flex;flex-direction:column;align-items:center;gap:18px;}
+  .caption{
+    color:#8fa89a;
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-weight:600;
+  }
+  .caption span{color:#4bd68a;}
+
+  /* ---------- PHONE FRAME ---------- */
+  .phone{
+    position:relative;
+    width:392px;
+    height:844px;
+    border-radius:56px;
+    background:linear-gradient(160deg,#2b2f2d,#101413 40%,#232825);
+    padding:11px;
+    box-shadow:
+      0 0 0 2px rgba(255,255,255,.06),
+      0 40px 80px -20px rgba(0,0,0,.85),
+      0 0 90px -20px rgba(31,164,99,.35);
+  }
+  .phone::after{
+    content:"";
+    position:absolute;
+    inset:-2px;
+    border-radius:58px;
+    padding:2px;
+    background:linear-gradient(150deg,rgba(255,255,255,.35),rgba(255,255,255,0) 40%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+            mask-composite:exclude;
+    pointer-events:none;
+  }
+  .screen{
+    position:relative;
+    width:100%;
+    height:100%;
+    border-radius:46px;
+    overflow:hidden;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    color:var(--text);
+  }
+
+  /* ---------- STATUS BAR ---------- */
+  .statusbar{
+    flex:none;
+    height:56px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    padding:0 30px 8px;
+    font-size:14px;
+    font-weight:650;
+    letter-spacing:.01em;
+    position:relative;
+    z-index:5;
+  }
+  .island{
+    position:absolute;
+    top:11px;left:50%;
+    transform:translateX(-50%);
+    width:112px;height:31px;
+    background:#050706;
+    border-radius:20px;
+    z-index:6;
+  }
+  .sb-right{display:flex;align-items:center;gap:5px;}
+
+  /* ---------- APP SHELL ---------- */
+  .app{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    position:relative;
+  }
+  .scroller{
+    flex:1;
+    overflow-y:auto;
+    overflow-x:hidden;
+    scrollbar-width:none;
+    padding-bottom:14px;
+  }
+  .scroller::-webkit-scrollbar{display:none;}
+
+  /* ---------- HEADER ---------- */
+  .brand-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:6px 22px 14px;
+  }
+  .brand{
+    display:flex;align-items:center;gap:9px;
+    font-size:23px;font-weight:750;letter-spacing:-.03em;
+  }
+  .brand .logo{
+    width:32px;height:32px;border-radius:11px;
+    background:linear-gradient(145deg,#26b672,#12864f);
+    display:grid;place-items:center;
+    color:#fff;
+    box-shadow:0 6px 14px -4px rgba(31,164,99,.6);
+  }
+  .brand .logo svg{width:18px;height:18px;}
+  .brand em{font-style:normal;color:var(--muted);font-weight:600;}
+
+  .icon-btn{
+    width:38px;height:38px;border-radius:13px;
+    border:1px solid var(--line);
+    background:var(--card);
+    display:grid;place-items:center;
+    color:#4a5a50;
+    cursor:pointer;
+    transition:.18s;
+    flex:none;
+  }
+  .icon-btn:active{transform:scale(.92);background:#eef3ef;}
+  .icon-btn svg{width:18px;height:18px;}
+  .hdr-actions{display:flex;gap:8px;}
+
+  /* ---------- SEARCH ---------- */
+  .search{
+    margin:0 20px 14px;
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:15px;
+    padding:11px 14px;
+    color:var(--faint);
+    font-size:14.5px;
+    box-shadow:0 1px 2px rgba(14,26,18,.03);
+  }
+  .search svg{width:17px;height:17px;flex:none;color:#93a49a;}
+
+  /* ---------- CHIPS ---------- */
+  .chips{
+    display:flex;gap:8px;
+    padding:0 20px 18px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:none;
+    padding:8px 15px;
+    border-radius:11px;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:#5c6d63;
+    font-size:13px;font-weight:620;
+    cursor:pointer;
+    transition:.18s;
+    white-space:nowrap;
+  }
+  .chip.active{
+    background:var(--text);
+    border-color:var(--text);
+    color:#fff;
+  }
+  .chip:active{transform:scale(.95);}
+
+  /* ---------- SECTION ---------- */
+  .sec-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:0 22px 10px;
+  }
+  .sec-head h2{
+    margin:0;
+    font-size:13px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;
+    color:var(--faint);
+  }
+  .sec-head a{
+    font-size:13px;font-weight:650;color:var(--accent);
+    text-decoration:none;cursor:pointer;
+  }
+
+  /* ---------- DOCUMENT ROWS ---------- */
+  .list{
+    margin:0 16px;
+    background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    overflow:hidden;
+    box-shadow:0 2px 10px -6px rgba(14,26,18,.18);
+  }
+  .doc-row{
+    display:flex;align-items:center;gap:13px;
+    width:100%;
+    padding:12px 14px;
+    border:0;background:transparent;
+    text-align:left;
+    cursor:pointer;
+    font-family:inherit;
+    position:relative;
+    transition:background .15s;
+  }
+  .doc-row + .doc-row::before{
+    content:"";position:absolute;top:0;left:62px;right:0;height:1px;background:var(--line);
+  }
+  .doc-row:active{background:#f2f6f3;}
+
+  .ficon{
+    width:38px;height:38px;flex:none;
+    border-radius:12px;
+    display:grid;place-items:center;
+    background:color-mix(in srgb, var(--c) 12%, white);
+    color:var(--c);
+  }
+  .ficon svg{width:19px;height:19px;}
+
+  .fmeta{flex:1;min-width:0;}
+  .fname{
+    display:block;
+    font-size:14.5px;font-weight:620;
+    letter-spacing:-.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    color:var(--text);
+  }
+  .fsub{
+    display:block;
+    font-size:12px;color:var(--faint);margin-top:2px;
+    font-weight:500;
+  }
+  .fstar{width:16px;height:16px;flex:none;color:#f0b429;}
+  .fchev{width:16px;height:16px;flex:none;color:#c3cec8;}
+
+  /* ---------- SETTINGS ---------- */
+  .profile{
+    display:flex;align-items:center;gap:14px;
+    margin:0 16px 20px;
+    padding:16px;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);
+  }
+  .avatar{
+    width:48px;height:48px;border-radius:16px;
+    background:linear-gradient(145deg,#26b672,#0f7a48);
+    display:grid;place-items:center;color:#fff;
+  }
+  .avatar svg{width:24px;height:24px;}
+  .profile b{display:block;font-size:15px;font-weight:660;}
+  .profile small{font-size:12.5px;color:var(--faint);}
+
+  .setting-row{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;
+    padding:13px 14px;
+    position:relative;
+    cursor:pointer;
+  }
+  .setting-row + .setting-row::before{
+    content:"";position:absolute;top:0;left:14px;right:0;height:1px;background:var(--line);
+  }
+  .setting-row span{font-size:14px;font-weight:580;}
+  .setting-row .sub{font-size:11.5px;color:var(--faint);display:block;margin-top:2px;font-weight:500;}
+
+  .switch{
+    width:46px;height:28px;border-radius:16px;background:#dbe3de;
+    position:relative;flex:none;transition:.22s;
+  }
+  .switch::after{
+    content:"";position:absolute;top:3px;left:3px;
+    width:22px;height:22px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);
+    transition:.22s cubic-bezier(.32,.72,0,1);
+  }
+  .switch.on{background:var(--accent);}
+  .switch.on::after{transform:translateX(18px);}
+
+  /* ---------- TAB BAR ---------- */
+  .tabbar{
+    flex:none;
+    height:80px;
+    background:rgba(255,255,255,.92);
+    backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);
+    display:flex;
+    align-items:flex-start;
+    padding-top:9px;
+    padding-bottom:14px;
+  }
+  .tab{
+    flex:1;
+    background:none;border:0;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    color:#9aa9a0;
+    font-family:inherit;
+    font-size:10.5px;font-weight:620;
+    cursor:pointer;
+    padding:0;
+    transition:color .18s;
+  }
+  .tab svg{width:22px;height:22px;}
+  .tab.active{color:var(--accent);}
+  .tab:active{transform:scale(.94);}
+
+  /* ---------- VIEWER ---------- */
+  .viewer{
+    position:absolute;
+    top:56px;left:0;right:0;bottom:0;
+    background:var(--bg);
+    z-index:30;
+    display:flex;flex-direction:column;
+    transform:translateX(100%);
+    transition:transform .36s cubic-bezier(.32,.72,0,1);
+  }
+  .viewer.open{transform:none;}
+
+  .v-head{
+    flex:none;
+    display:flex;align-items:center;gap:10px;
+    padding:8px 14px 12px;
+    border-bottom:1px solid var(--line);
+    background:rgba(246,248,246,.94);
+    backdrop-filter:blur(12px);
+  }
+  .v-title{
+    flex:1;min-width:0;
+    font-size:14.5px;font-weight:660;
+    letter-spacing:-.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    text-align:center;
+  }
+  .v-title small{display:block;font-size:11px;color:var(--faint);font-weight:500;margin-top:1px;}
+  .v-body{flex:1;overflow-y:auto;scrollbar-width:none;}
+  .v-body::-webkit-scrollbar{display:none;}
+
+  /* document page view */
+  .doc-page{
+    margin:14px;
+    background:#fff;
+    border-radius:16px;
+    padding:24px 22px;
+    box-shadow:0 12px 28px -20px rgba(14,26,18,.6), 0 0 0 1px var(--line);
+    min-height:440px;
+  }
+  .doc-page .kicker{
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent);font-weight:700;margin-bottom:6px;
+  }
+  .doc-page h3{font-size:18px;margin:0 0 4px;letter-spacing:-.02em;}
+  .doc-page .meta{font-size:11.5px;color:var(--faint);margin-bottom:20px;font-weight:500;}
+  .line{height:8px;border-radius:5px;background:#E9EFEA;margin-bottom:11px;}
+  .line.w100{width:100%} .line.w94{width:94%} .line.w88{width:88%}
+  .line.w97{width:97%} .line.w64{width:64%} .line.w72{width:72%}
+  .line.w46{width:46%} .line.w55{width:55%} .line.w96{width:96%}
+  .line.w99{width:99%} .line.w91{width:91%} .line.w84{width:84%}
+
+  /* table for xlsx */
+  .sheet{
+    margin:14px;border-radius:16px;overflow:hidden;
+    border:1px solid var(--line);background:#fff;
+  }
+  .sheet table{width:100%;border-collapse:collapse;font-size:12px;}
+  .sheet th{
+    background:#F1F6F2;color:#5c6d63;font-weight:680;font-size:10.5px;
+    letter-spacing:.05em;text-transform:uppercase;
+    padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);
+  }
+  .sheet td{padding:10px 12px;border-bottom:1px solid var(--line);color:#3d4b43;font-weight:550;}
+  .sheet tr:last-child td{border-bottom:0;}
+  .sheet td.num{text-align:right;font-variant-numeric:tabular-nums;color:#0E1A12;font-weight:640;}
+
+  /* text / markdown */
+  .md{padding:22px 26px 40px;}
+  .md .tag{
+    display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--accent);background:var(--accent-soft);
+    padding:3px 8px;border-radius:6px;margin-bottom:6px;
+  }
+  .md h1{font-size:21px;margin:6px 0 12px;letter-spacing:-.02em;}
+  .md h2{font-size:15px;margin:22px 0 8px;}
+  .md p{font-size:14px;line-height:1.65;color:#3d4b43;margin:0 0 12px;}
+  .md li{font-size:14px;line-height:1.75;color:#3d4b43;margin-left:-8px;}
+
+  /* pdf placeholder chart */
+  .chart{
+    height:120px;margin:20px 0 16px;
+    display:flex;align-items:flex-end;gap:9px;
+    padding:12px;background:#F6F9F7;border-radius:10px;
+  }
+  .chart i{
+    flex:1;border-radius:4px 4px 2px 2px;
+    background:linear-gradient(180deg,#3ecb83,#1a9a60);
+    opacity:.85;
+  }
+  .pager{display:flex;justify-content:center;gap:6px;margin-top:18px;}
+  .pager i{width:6px;height:6px;border-radius:50%;background:#c9d5cd;}
+  .pager i.on{background:var(--accent);width:18px;border-radius:4px;}
+
+  /* empty */
+  .empty{text-align:center;padding:60px 30px;color:var(--faint);}
+  .empty svg{width:38px;height:38px;margin-bottom:12px;opacity:.5;}
+  .empty p{font-size:13.5px;margin:0;font-weight:550;}
+
+  .fade-in{animation:fade .28s ease both;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="phone">
+    <div class="screen">
+
+      <!-- status bar -->
+      <div class="statusbar">
+        <div class="island"></div>
+        <div>9:41</div>
+        <div class="sb-right">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 10.5a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8zm0-4.2c1.2 0 2.3.45 3.1 1.2l1.1-1.15A7 7 0 0 0 8 4.4a7 7 0 0 0-4.2 1.4l1.1 1.14A4.6 4.6 0 0 1 8 6.3zm0-3.9c2.1 0 4 .8 5.4 2.1l1.1-1.1A10.4 10.4 0 0 0 8 .8 10.4 10.4 0 0 0 1.5 3.4l1.1 1.1A8.4 8.4 0 0 1 8 2.4z"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><path d="M23 4v4a2.2 2.2 0 0 0 0-4z" fill="currentColor" opacity=".5"/></svg>
+        </div>
+      </div>
+
+      <!-- app -->
+      <div class="app">
+        <div class="scroller" id="scroller"></div>
+        <nav class="tabbar" id="tabbar">
+          <button class="tab active" data-tab="library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H9a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 9 21H5.5A1.5 1.5 0 0 1 4 19.5z"/><path d="M13.5 4.5A1.5 1.5 0 0 1 15 3h3.5A1.5 1.5 0 0 1 20 4.5v15a1.5 1.5 0 0 1-1.5 1.5H15a1.5 1.5 0 0 1-1.5-1.5z"/></svg>
+            Library
+          </button>
+          <button class="tab" data-tab="starred">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6L3.2 9.4l6.1-.9z"/></svg>
+            Starred
+          </button>
+          <button class="tab" data-tab="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-4M20 13V3M1.5 15h5M9.5 8h5M17.5 17h5"/></svg>
+            Settings
+          </button>
+        </nav>
+
+        <!-- viewer overlay -->
+        <div class="viewer" id="viewer"></div>
+      </div>
+
+    </div>
+  </div>
+  <div class="caption">Leaf&nbsp;Lite <span>·</span> document viewer</div>
+</div>
+
+<script>
+/* ============ ICONS ============ */
+const ICONS = {
+  pdf:'<path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M13 2v5h5"/><path d="M8 13h6M8 17h4"/>',
+  doc:'<path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M13 2v5h5"/><path d="M8 13h8M8 17h5"/>',
+  sheet:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 10h18M9 10v10M15 10v10"/>',
+  text:'<path d="M4 6h16M4 12h16M4 18h9"/>',
+  markdown:'<path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M13 2v5h5"/><path d="M8 13h8M8 17h5"/>'
+};
+const COLORS = {
+  pdf:'#E5484D',
+  doc:'#2563EB',
+  sheet:'#16A34A',
+  text:'#64748B',
+  markdown:'#8B5CF6'
+};
+const LABELS = {
+  pdf:'PDF Document',
+  doc:'Word Document',
+  sheet:'Spreadsheet',
+  text:'Plain Text',
+  markdown:'Markdown'
+};
+
+function typeIcon(t, cls){
+  return `<svg class="${cls||''}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[t]}</svg>`;
+}
+
+/* ============ DATA ============ */
+const FILES = [
+  { id:1, name:'Q3-Report.pdf', type:'pdf', size:'2.4 MB', date:'Today, 9:41 AM', starred:true },
+  { id:2, name:'Project-Brief.docx', type:'doc', size:'1.1 MB', date:'Today, 8:12 AM', starred:false },
+  { id:3, name:'Budget-2026.xlsx', type:'sheet', size:'340 KB', date:'Yesterday', starred:true },
+  { id:4, name:'Meeting-Notes.txt', type:'text', size:'3 KB', date:'Yesterday', starred:false },
+  { id:5, name:'README.md', type:'markdown', size:'8 KB', date:'Monday', starred:false },
+  { id:6, name:'Contract-v2.docx', type:'doc', size:'88 KB', date:'Monday', starred:true },
+  { id:7, name:'Annual-Review.pdf', type:'pdf', size:'5.2 MB', date:'Sunday', starred:false },
+  { id:8, name:'Specs.md', type:'markdown', size:'12 KB', date:'Sunday', starred:false }
+];
+
+const FILTERS = [
+  { key:'all',      label:'All' },
+  { key:'pdf',      label:'PDF' },
+  { key:'doc',      label:'Word' },
+  { key:'sheet',    label:'Excel' },
+  { key:'text',     label:'Text' },
+  { key:'markdown', label:'Markdown' }
+];
+const FILTER_MAP = {
+  all: () => true,
+  pdf: f => f.type === 'pdf',
+  doc: f => f.type === 'doc',
+  sheet: f => f.type === 'sheet',
+  text: f => f.type === 'text',
+  markdown: f => f.type === 'markdown'
+};
+
+const state = { tab:'library', filter:'all', openId:null };
+
+/* ============ RENDER: DOCUMENT ROW ============ */
+function docRow(f){
+  const c = COLORS[f.type];
+  return `
+  <button class="doc-row" data-open="${f.id}">
+    <span class="ficon" style="--c:${c}">${typeIcon(f.type)}</span>
+    <span class="fmeta">
+      <span class="fname">${f.name}</span>
+      <span class="fsub">${LABELS[f.type]} · ${f.size} · ${f.date}</span>
+    </span>
+    ${f.starred
+      ? `<svg class="fstar" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6L3.2 9.4l6.1-.9z"/></svg>`
+      : `<svg class="fchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>`}
+  </button>`;
+}
+
+function listOf(arr){
+  if(!arr.length){
+    return `<div class="empty">
+      ${typeIcon('text')}
+      <p>No documents here</p>
+    </div>`;
+  }
+  return `<div class="list fade-in">${arr.map(docRow).join('')}</div>`;
+}
+
+/* ============ RENDER: HEADER ============ */
+function brandHeader(){
+  return `
+  <div class="brand-row">
+    <div class="brand">
+      <span class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+        </svg>
+      </span>
+      Leaf <em>Lite</em>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" title="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+      <button class="icon-btn" title="More">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+/* ============ RENDER: TAB VIEWS ============ */
+function renderLibrary(){
+  const list = FILES.filter(FILTER_MAP[state.filter]);
+  const label = state.filter==='all' ? 'All documents' : FILTERS.find(f=>f.key===state.filter).label;
+  return `
+    ${brandHeader()}
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Search documents, text or tags
+    </div>
+    <div class="chips">
+      ${FILTERS.map(f=>`<button class="chip ${state.filter===f.key?'active':''}" data-filter="${f.key}">${f.label}</button>`).join('')}
+    </div>
+    <div class="sec-head">
+      <h2>${label} · ${list.length}</h2>
+      <a>Sort</a>
+    </div>
+    ${listOf(list)}
+  `;
+}
+
+function renderStarred(){
+  const list = FILES.filter(f=>f.starred);
+  return `
+    ${brandHeader()}
+    <div class="sec-head" style="padding-top:4px"><h2>Starred · ${list.length}</h2></div>
+    ${listOf(list)}
+  `;
+}
+
+function renderSettings(){
+  const rows = [
+    { label:'Night reading mode', sub:'Sepia & dark themes', on:false },
+    { label:'Keep screen on', sub:'While viewing documents', on:true },
+    { label:'Compact list', sub:'Show more rows', on:false }
+  ];
+  return `
+    ${brandHeader()}
+    <div class="profile">
+      <div class="avatar">${typeIcon('doc')}</div>
+      <div>
+        <b>Document library</b>
+        <small>8 documents · synced 2 min ago</small>
+      </div>
+    </div>
+    <div class="sec-head"><h2>Viewing</h2></div>
+    <div class="list">
+      ${rows.map(r=>`
+        <div class="setting-row" data-toggle>
+          <span>${r.label}<span class="sub">${r.sub}</span></span>
+          <span class="switch ${r.on?'on':''}"></span>
+        </div>`).join('')}
+    </div>
+    <div class="sec-head" style="padding-top:22px"><h2>About</h2></div>
+    <div class="list">
+      <div class="setting-row"><span>Version<span class="sub">Leaf Lite 1.4.0</span></span>
+        <svg class="fchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </div>
+      <div class="setting-row"><span>Supported formats<span class="sub">PDF, DOCX, XLSX, TXT, MD</span></span>
+        <svg class="fchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </div>
+    </div>
+  `;
+}
+
+function render(){
+  const s = document.getElementById('scroller');
+  s.scrollTop = 0;
+  if(state.tab==='library')   s.innerHTML = renderLibrary();
+  if(state.tab==='starred')   s.innerHTML = renderStarred();
+  if(state.tab==='settings')  s.innerHTML = renderSettings();
+}
+
+/* ============ VIEWER CONTENT ============ */
+function viewerBody(f){
+  switch(f.type){
+
+    case 'pdf': return `
+      <div class="doc-page">
+        <div class="kicker">Quarterly Review</div>
+        <h3>Q3 Performance Report</h3>
+        <div class="meta">PDF · 12 pages · 2.4 MB</div>
+        <div class="line w55"></div>
+        <div class="chart">
+          <i style="height:38%"></i><i style="height:62%"></i><i style="height:48%"></i>
+          <i style="height:78%"></i><i style="height:58%"></i><i style="height:92%"></i>
+          <i style="height:70%"></i>
+        </div>
+        <div class="line w100"></div>
+        <div class="line w94"></div>
+        <div class="line w88"></div>
+        <div class="line w97"></div>
+        <div class="line w64"></div>
+        <div class="pager"><i class="on"></i><i></i><i></i><i></i></div>
+      </div>
+      <div style="text-align:center;font-size:11.5px;color:var(--faint);margin-top:12px;font-weight:600">Page 1 of 12</div>`;
+
+    case 'doc': return `
+      <div class="doc-page">
+        <div class="kicker">Project Brief</div>
+        <h3>${f.name.replace('.docx','')}</h3>
+        <div class="meta">Word Document · ${f.size}</div>
+        <div class="line w100"></div>
+        <div class="line w96"></div>
+        <div class="line w99"></div>
+        <div class="line w72"></div>
+        <div style="height:14px"></div>
+        <div class="line w100"></div>
+        <div class="line w91"></div>
+        <div class="line w97"></div>
+        <div class="line w84"></div>
+        <div class="line w46"></div>
+      </div>`;
+
+    case 'sheet': {
+      const rows = [
+        ['Design',      '12,400', '8,100',  '4,300'],
+        ['Engineering', '28,900', '19,200', '9,700'],
+        ['Marketing',   '9,750',  '7,400',  '2,350'],
+        ['Support',     '6,200',  '5,850',  '350'],
+        ['Operations',  '14,100', '9,900',  '4,200']
+      ];
+      return `
+      <div class="sheet">
+        <table>
+          <thead><tr><th>Team</th><th>Budget</th><th>Spent</th><th>Delta</th></tr></thead>
+          <tbody>
+            ${rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3]}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:0 22px 30px;font-size:11.5px;color:var(--faint);font-weight:600">Sheet 1 of 3 · 42 rows</div>`;
+    }
+
+    case 'text': return `
+      <div class="md">
+        <span class="tag">Plain Text</span>
+        <h1>${f.name.replace('.txt','')}</h1>
+        <p>This is a plain text document. Leaf Lite renders it with a comfortable reading layout.</p>
+        <h2>Notes</h2>
+        <ul>
+          <li>Line breaks preserved</li>
+          <li>Monospace optional</li>
+          <li>Word wrap on</li>
+        </ul>
+        <p>Everything stays lightweight and fast.</p>
+      </div>`;
+
+    case 'markdown': return `
+      <div class="md">
+        <span class="tag">Markdown</span>
+        <h1>${f.name.replace('.md','')}</h1>
+        <p>A tiny viewer that opens almost any document without the weight.</p>
+        <h2>Supported formats</h2>
+        <ul>
+          <li>PDF &amp; Word documents</li>
+          <li>Excel spreadsheets</li>
+          <li>Plain text &amp; Markdown</li>
+        </ul>
+        <h2>Design rules</h2>
+        <p>One accent colour, three type sizes, no chrome that isn't earning its place.</p>
+      </div>`;
+
+    default: return `<div class="empty"><p>Preview not available</p></div>`;
+  }
+}
+
+/* ============ VIEWER ============ */
+function openFile(id){
+  const f = FILES.find(x=>x.id===id);
+  if(!f) return;
+  state.openId = id;
+
+  const v = document.getElementById('viewer');
+  v.innerHTML = `
+    <div class="v-head">
+      <button class="icon-btn" data-close>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>
+      </button>
+      <div class="v-title">${f.name}<small>${LABELS[f.type]} · ${f.size}</small></div>
+      <button class="icon-btn" data-star="${f.id}" style="${f.starred?'color:#f0b429':''}">
+        <svg viewBox="0 0 24 24" fill="${f.starred?'currentColor':'none'}" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6L3.2 9.4l6.1-.9z"/></svg>
+      </button>
+    </div>
+    <div class="v-body">${viewerBody(f)}</div>
+  `;
+
+  requestAnimationFrame(()=>v.classList.add('open'));
+}
+
+function closeViewer(){
+  const v = document.getElementById('viewer');
+  v.classList.remove('open');
+  state.openId = null;
+}
+
+/* ============ EVENTS ============ */
+document.getElementById('scroller').addEventListener('click', e => {
+  const open = e.target.closest('[data-open]');
+  if(open){ openFile(+open.dataset.open); return; }
+
+  const chip = e.target.closest('[data-filter]');
+  if(chip){
+    state.filter = chip.dataset.filter;
+    render();
+    return;
+  }
+
+  const toggle = e.target.closest('[data-toggle]');
+  if(toggle){
+    toggle.querySelector('.switch').classList.toggle('on');
+  }
+});
+
+document.getElementById('tabbar').addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]');
+  if(!tab) return;
+  state.tab = tab.dataset.tab;
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === state.tab)
+  );
+  render();
+});
+
+document.getElementById('viewer').addEventListener('click', e => {
+  if(e.target.closest('[data-close]')){ closeViewer(); return; }
+
+  const starBtn = e.target.closest('[data-star]');
+  if(starBtn){
+    const f = FILES.find(x => x.id === +starBtn.dataset.star);
+    f.starred = !f.starred;
+    const svg = starBtn.querySelector('svg');
+    svg.setAttribute('fill', f.starred ? 'currentColor' : 'none');
+    starBtn.style.color = f.starred ? '#f0b429' : '';
+    render();
+  }
+});
+
+/* ============ INIT ============ */
+render();
+</script>
+</body>
+</html>
