@@ -23,7 +23,7 @@ Leaf Lite is an **offline, multi-format document viewer** that:
 |---|-----------|--------|
 | 1 | **minSdk 23** (Android 6.0 Marshmallow) | Every API used must exist on API 23 or be guarded by `Build.VERSION.SDK_INT` checks. |
 | 2 | **targetSdk / compileSdk = latest stable** | API 36 at time of writing; use newer if available. |
-| 3 | **Tiny APK** | Budget: **≤ 8 MB universal release APK, ≤ 5 MB Play (AAB) download size**. Verify with `apkanalyzer` and report the size when done. |
+| 3 | **Tiny footprint** | Budget: **≤ 8 MB universal release APK, ≤ 5 MB Play (AAB) download size, ≤ 15 MB installed on device** (APK + ART artifacts + app data; expected realistically ~8–12 MB). No native libraries anywhere. Verify with `apkanalyzer` and report all numbers when done. |
 | 4 | **Language/UI: Kotlin + classic XML Views + ViewBinding** | **NO Jetpack Compose** (size + older-device overhead). No Java. |
 | 5 | **Zero heavyweight document libraries** | **Forbidden:** Apache POI, docx4j, PdfBox, MuPDF, Android PdfViewer (barteksc), JSoup, Gson/Moshi/kotlinx-serialization, any DI framework (Hilt/Koin/Dagger), RxJava, Glide/Coil/Picasso, Firebase/Analytics anything. |
 | 6 | **Built-in PDF rendering** | Use `android.graphics.pdf.PdfRenderer` (available since API 21). |
@@ -275,7 +275,7 @@ Extension first (`.pdf .docx .xlsx .txt .md .markdown .text`), MIME as corrobora
 3. Single language: `resConfigs += "en"`. No bundled fonts. No emoji image sets.
 4. Dependency list is exactly §10 — nothing else may be added without a size justification in `DECISIONS.md`.
 5. No native code, no NDK, no ABI splits needed.
-6. Build both `assembleRelease` (universal APK) and `bundleRelease`; run `apkanalyzer apk size` / `download-size`; **report both numbers** and confirm ≤ 8 MB / ≤ 5 MB.
+6. Build both `assembleRelease` (universal APK) and `bundleRelease`; run `apkanalyzer apk size` / `download-size`; **report both numbers** and confirm ≤ 8 MB / ≤ 5 MB. If an emulator/device is available, install and also measure the on-device footprint (`adb shell dumpsys diskstats`, or `du` over `/data/app/<pkg>-*` + `/data/data/<pkg>` after a first scan) and confirm ≤ 15 MB installed.
 7. Audit resources: no unused drawables/styles (shrinkResources handles most; double-check `res/` for leftovers).
 
 ---
@@ -378,7 +378,7 @@ Package id: `com.leaflite.viewer`. App label: **Leaf Lite**. Version: `1.0.0` (v
 - [ ] Star, filter, sort, search, settings all persist across app restarts.
 - [ ] "Open with → Leaf Lite" works from another app (e.g., a file manager) for all five MIME types.
 - [ ] No INTERNET permission; no network code paths exist.
-- [ ] Universal release APK ≤ 8 MB and AAB download size ≤ 5 MB (apkanalyzer output included in your final message).
+- [ ] Universal release APK ≤ 8 MB, AAB download size ≤ 5 MB (apkanalyzer output included in your final message), and installed on-device footprint ≤ 15 MB including app data after a first library scan.
 - [ ] Visuals match §5 tokens: colors, radii, spacing, type scale, per-type icon colors, star gold, active-chip inversion.
 - [ ] Edge-to-edge with correct insets on API 23 and API 34; light status bar icons in light theme.
 - [ ] Content descriptions on all icon-only controls; ≥ 48dp touch targets.
