@@ -56,7 +56,21 @@ jobs:
         run: python3 tools/verify_project.py
 
       - name: Unit tests, lint, debug + release APK, AAB
-        run: ./gradlew testReleaseUnitTest lintRelease assembleDebug assembleRelease bundleRelease --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew testReleaseUnitTest lintRelease assembleDebug assembleRelease bundleRelease --stacktrace 2>&1 | tee gradle-build.log
+
+      - name: Surface build failure
+        if: failure()
+        run: |
+          # The Checks API exposes annotations; use them to publish the
+          # failure excerpt so the error is readable without the log download.
+          esc() { sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' "$1" | tr -d '\n'; }
+          grep -nE '^e: |error:|FAILED|What went wrong|Execution failed|Caused by|Could not|FAILURE|Unresolved' gradle-build.log | head -40 > errors.txt || true
+          tail -n 80 gradle-build.log > tail.txt || true
+          if [ -s errors.txt ]; then echo "::error::$(esc errors.txt)"; fi
+          echo "::warning::$(esc tail.txt)"
+          { echo '### Gradle failure excerpt'; echo; echo '```'; cat tail.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Size report (apkanalyzer + bundletool)
         run: bash tools/size_report.sh
@@ -110,6 +124,7 @@ jobs:
           path: |
             app/build/reports/
             build/size/
+            gradle-build.log
           if-no-files-found: ignore
 
   smoke-test:
