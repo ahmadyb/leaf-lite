@@ -221,6 +221,10 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     } >> "$GITHUB_STEP_SUMMARY"
 fi
 
+# Also surface the headline numbers as a Check annotation so they are
+# readable from the run page and the Checks API (not just the log).
+echo "::notice::size: APK file $(mb "$APK_FILE_SIZE") MB · APK download $(mb "$APK_DOWNLOAD_SIZE") MB · AAB download $(mb "$AAB_MIN")..$(mb "$AAB_MAX") MB · installed est. $(mb "$INSTALLED_MIN")..$(mb "$INSTALLED_MAX") MB · minSdk $MIN_SDK · permissions: ${PERMISSIONS:-none}"
+
 if [ "$failures" -gt 0 ]; then
     annotate "$failures size budget(s) exceeded — see the size report table"
     [ "$STRICT" = "1" ] && exit 1
