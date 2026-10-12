@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Night reading mode palette (accent and star stay identical). -->
+<resources>
+    <color name="bg">#0E1210</color>
+    <color name="card">#171D19</color>
+    <color name="text">#E8EFE9</color>
+    <color name="muted">#9FB0A5</color>
+    <color name="faint">#7C8C82</color>
+    <color name="line">#2A312D</color>
+    <color name="accent">#1FA463</color>
+    <color name="accent_soft">#17342A</color>
+
+    <color name="star">#F0B429</color>
+    <color name="row_pressed">#1D241F</color>
+    <color name="ripple">#26FFFFFF</color>
+    <color name="chip_text">#9FB0A5</color>
+    <color name="icon_idle">#C3D0C7</color>
+    <color name="tab_idle">#6F7F75</color>
+    <color name="chevron">#3C4741</color>
+    <color name="tabbar_bg">#EB121614</color>
+
+    <color name="body_text">#C7D3CB</color>
+    <color name="sheet_header">#1F2723</color>
+    <color name="code_bg">#151B18</color>
+
+    <!-- sepia reading surfaces are unchanged in night mode (they *are* the
+         reading surface), but the surrounding chrome uses the dark palette. -->
+    <color name="sepia_page">#F7F1E3</color>
+    <color name="sepia_text">#3D3428</color>
+
+    <color name="type_pdf">#F2686C</color>
+    <color name="type_docx">#5B8DEF</color>
+    <color name="type_xlsx">#3DBE71</color>
+    <color name="type_txt">#94A3B8</color>
+    <color name="type_md">#A88BF9</color>
+
+    <color name="switch_off">#2E3733</color>
+    <color name="switch_knob">#F2F6F3</color>
+</resources>

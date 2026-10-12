@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Leaf Lite colour tokens. Every value here comes straight from the mockup
+  (see leaf lite.html / Appendix A of the build prompt).
+-->
+<resources>
+
+    <!-- base -->
+    <color name="bg">#F6F8F6</color>
+    <color name="card">#FFFFFF</color>
+    <color name="text">#0E1A12</color>
+    <color name="muted">#78897E</color>
+    <color name="faint">#9DADA3</color>
+    <color name="line">#E4E9E5</color>
+    <color name="accent">#1FA463</color>
+    <color name="accent_soft">#E4F5EB</color>
+
+    <!-- state / chrome -->
+    <color name="star">#F0B429</color>
+    <color name="row_pressed">#F2F6F3</color>
+    <color name="ripple">#1A0E1A12</color>
+    <color name="chip_text">#5C6D63</color>
+    <color name="icon_idle">#4A5A50</color>
+    <color name="tab_idle">#9AA9A0</color>
+    <color name="chevron">#C3CEC8</color>
+    <color name="tabbar_bg">#EBFFFFFF</color>
+
+    <!-- reading surfaces -->
+    <color name="body_text">#3D4B43</color>
+    <color name="sheet_header">#F1F6F2</color>
+    <color name="code_bg">#F6F9F7</color>
+
+    <!-- sepia reading variant (viewer body while Night reading mode is on) -->
+    <color name="sepia_page">#F7F1E3</color>
+    <color name="sepia_text">#3D3428</color>
+
+    <!-- per file-type accent colours (icon tint; tile = 12% over card) -->
+    <color name="type_pdf">#E5484D</color>
+    <color name="type_docx">#2563EB</color>
+    <color name="type_xlsx">#16A34A</color>
+    <color name="type_txt">#64748B</color>
+    <color name="type_md">#8B5CF6</color>
+
+    <!-- logo gradient -->
+    <color name="logo_start">#26B672</color>
+    <color name="logo_end">#12864F</color>
+
+    <!-- custom pill switch -->
+    <color name="switch_off">#DBE3DE</color>
+    <color name="switch_knob">#FFFFFF</color>
+
+    <!-- launcher icon -->
+</resources>

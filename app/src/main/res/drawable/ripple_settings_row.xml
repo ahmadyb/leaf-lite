@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings row below the first one: card content, hairline inset 14dp. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/ripple">
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/card" />
+                </shape>
+            </item>
+            <item
+                android:gravity="top"
+                android:left="14dp">
+                <shape android:shape="rectangle">
+                    <size android:height="1dp" />
+                    <solid android:color="@color/line" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</ripple>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid tile: the per-type background colour is applied at runtime by
+     blending 12% of the type colour over @color/card (see DocumentAdapter). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/card" />
+    <corners android:radius="@dimen/radius_tile" />
+</shape>

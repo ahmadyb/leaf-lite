@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- screen rhythm -->
+    <dimen name="pad_screen">16dp</dimen>
+    <dimen name="pad_header">22dp</dimen>
+    <dimen name="pad_content">14dp</dimen>
+
+    <!-- radii -->
+    <dimen name="radius_card">18dp</dimen>
+    <dimen name="radius_page">16dp</dimen>
+    <dimen name="radius_search">15dp</dimen>
+    <dimen name="radius_icon_btn">13dp</dimen>
+    <dimen name="radius_tile">12dp</dimen>
+    <dimen name="radius_chip">11dp</dimen>
+    <dimen name="radius_logo">11dp</dimen>
+    <dimen name="radius_small">6dp</dimen>
+    <dimen name="radius_code">10dp</dimen>
+
+    <!-- components -->
+    <dimen name="logo_size">32dp</dimen>
+    <dimen name="icon_btn_size">38dp</dimen>
+    <dimen name="tile_size">38dp</dimen>
+    <dimen name="tile_size_compact">32dp</dimen>
+    <dimen name="row_height">62dp</dimen>
+    <dimen name="row_height_compact">52dp</dimen>
+    <dimen name="divider_inset">62dp</dimen>
+    <dimen name="tabbar_height">64dp</dimen>
+    <dimen name="avatar_size">48dp</dimen>
+    <dimen name="touch_target">48dp</dimen>
+    <dimen name="empty_icon">38dp</dimen>
+    <dimen name="switch_width">46dp</dimen>
+    <dimen name="switch_height">28dp</dimen>
+    <dimen name="switch_knob">22dp</dimen>
+
+    <!-- reading layout -->
+    <dimen name="doc_page_margin">14dp</dimen>
+    <dimen name="cell_width">112dp</dimen>
+    <dimen name="cell_height">40dp</dimen>
+    <dimen name="cell_height_compact">34dp</dimen>
+</resources>

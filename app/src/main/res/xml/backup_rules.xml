@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Key/Value Backup (API 23-30): the document registry and preferences only.
+     Cached exports live in the cache dir and are never backed up. -->
+<full-backup-content>
+    <include
+        domain="database"
+        path="documents.db" />
+    <include
+        domain="sharedpref"
+        path="leaflite.xml" />
+    <exclude
+        domain="file"
+        path="shared" />
+</full-backup-content>

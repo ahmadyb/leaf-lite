@@ -1,0 +1,22 @@
+Leaf Lite — weekly meeting notes
+================================
+
+Attendees: Ana, Boris, Chiara, Dev
+
+Agenda
+------
+1. Size budget review (APK: 2.9 MB, AAB download: 2.1 MB)
+2. Parser status: DOCX tables render, XLSX dates now use numFmtId 14
+3. Night reading mode ships with the sepia page palette
+
+Notes
+-----
+* Cold start on the API 23 reference device: 780 ms to interactive.
+* Scanning 1,200 documents takes ~400 ms off the main thread.
+* No INTERNET permission — verified with apkanalyzer.
+
+Next steps
+----------
+- Finish the XLSX sheet switcher chips
+- Re-test rotation on a 12-page PDF
+- Keep the accented characters intact: café, naïve, Zürich, 日本語

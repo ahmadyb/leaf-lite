@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One spreadsheet row: cells are added programmatically at their column
+     width, the hairline along the bottom edge comes from the background. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cells"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/cell_height"
+    android:background="@drawable/bg_grid_row"
+    android:orientation="horizontal" />

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Everything Leaf Lite shares with another app ("Open in another app") is
+     copied into the cache/shared directory first, so nothing outside the cache
+     is ever exposed through the FileProvider. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="shared"
+        path="shared/" />
+</paths>
