@@ -107,6 +107,7 @@ def collect_values(path: Path, resources: dict[str, set[str]]) -> None:
             resources[kind].add(name.replace(".", "_"))
             if kind == "style":
                 resources[kind].add(name)
+                STYLE_PARENTS[name] = element.attrib.get("parent")
         if element.tag == "declare-styleable":
             for child in element:
                 if child.tag == "attr":
@@ -118,6 +119,7 @@ def collect_values(path: Path, resources: dict[str, set[str]]) -> None:
                     resources["styleable"].add(f"{name}_{attr_name.replace(':', '_')}")
 
 
+STYLE_PARENTS: dict[str, "str | None"] = {}
 RESOURCES = collect_resources()
 
 # ------------------------------------------------------------------- kotlin
@@ -305,6 +307,24 @@ def check_xml() -> None:
                 warn(f"{xml_file.relative_to(ROOT)}: unknown theme attribute ?attr/{reference}")
 
 
+def check_style_parents() -> None:
+    """AAPT links the implicit dot-parent chain: `Leaf.A` with no explicit
+    parent requires a declared style `Leaf`. Catch dangling chains before CI."""
+    for name, parent in sorted(STYLE_PARENTS.items()):
+        if parent is not None:
+            # Explicit parents are either app styles or library styles
+            # (Theme.AppCompat.*, TextAppearance.AppCompat, …). Only validate
+            # the ones rooted at a family the app itself declares.
+            root = parent.split(".")[0]
+            if root in STYLE_PARENTS and parent not in STYLE_PARENTS:
+                error(f"style {name}: explicit parent {parent} is not declared")
+            continue
+        if "." in name:
+            direct = name.rsplit(".", 1)[0]
+            if direct not in STYLE_PARENTS:
+                error(f"style {name}: implicit parent {direct} is not declared")
+
+
 def check_manifest() -> None:
     raw = MANIFEST.read_text(encoding="utf-8")
     text = re.sub(r"<!--.*?-->", "", raw, flags=re.S)
@@ -356,6 +376,7 @@ def main() -> int:
             check_kotlin(path)
     check_binding_usage()
     check_xml()
+    check_style_parents()
     check_manifest()
     check_unused()
 

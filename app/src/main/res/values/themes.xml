@@ -163,6 +163,11 @@
         <item name="android:textColor">@color/chip_text</item>
     </style>
 
+    <!-- Naming base for Leaf.* styles. Declared explicitly because AAPT
+         resolves the implicit dot-parent chain and fails the link when the
+         root is absent. Intentionally empty. -->
+    <style name="Leaf" />
+
     <!-- shared 48dp selectable row used by the sort sheet -->
     <style name="Leaf.SortRow">
         <item name="android:background">@drawable/ripple_row</item>
