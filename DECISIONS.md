@@ -13,9 +13,12 @@ only `github.com`, `codeload.github.com`, `api.github.com`, `registry.npmjs.org`
 `pypi.org` and `files.pythonhosted.org` are reachable — Google Maven and Maven
 Central are not. So:
 
-* `./gradlew assembleRelease bundleRelease` could **not** be executed here, and
-  the apkanalyzer numbers in §9 of the prompt are **estimates**, not
-  measurements. The exact commands to run are in `README.md` → *Size budget*.
+* `./gradlew assembleRelease bundleRelease` could **not** be executed in the
+  authoring sandbox. It **is** executed on every push by GitHub Actions
+  (`.github/workflows/android.yml`), which produced the real artefacts and the
+  real size numbers reported in `README.md` → *Size budget* (universal APK
+  **1.65 MB** file / **1.26 MB** download; AAB download **1.21–1.22 MB**;
+  installed estimate **2.88–3.46 MB** — all well inside the §14 budgets).
 * To compensate, the repository ships `tools/verify_project.py`, a static
   consistency checker (Kotlin delimiter balance, package/folder agreement,
   every `R.*` and `@drawable/@string/@color/@dimen/@style` reference,

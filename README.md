@@ -101,6 +101,18 @@ adb install app/build/outputs/apk/release/app-release.apk
 adb shell du -sh /data/app/*com.leaflite.viewer* /data/data/com.leaflite.viewer
 ```
 
+Measured on CI (GitHub Actions, 2026-10-12, run `38295712156`):
+
+| metric | budget | measured | verdict |
+| --- | --- | --- | --- |
+| universal APK file size | ≤ 8 MB | **1.65 MB** | 21% of budget |
+| universal APK download size | ≤ 8 MB | **1.26 MB** | 16% of budget |
+| AAB download size (min..max) | ≤ 5 MB | **1.21–1.22 MB** | 24% of budget |
+| installed footprint (est.) | ≤ 15 MB | **2.88–3.46 MB** | 23% of budget |
+
+Every number comes from `tools/size_report.sh` and is re-measured on each push;
+the script fails the build if any budget is ever exceeded.
+
 ### Tests
 
 ```bash
