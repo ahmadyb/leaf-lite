@@ -130,10 +130,18 @@ jobs:
           if-no-files-found: ignore
 
   smoke-test:
-    name: Instrumented smoke (API 23)
+    name: Instrumented smoke (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api-level: 23
+            target: default
+          - api-level: 35
+            target: google_apis
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -151,12 +159,12 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run androidTest on API 23 (minSdk floor)
+      - name: Run androidTest on API ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 23
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
-          target: default
+          target: ${{ matrix.target }}
           disable-animations: true
           script: ./gradlew connectedDebugAndroidTest --stacktrace
 

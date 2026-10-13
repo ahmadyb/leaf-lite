@@ -85,7 +85,21 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         setupList()
 
         viewModel.maybeInitialScan()
+        maybeAskStoragePermission()
         observeState()
+    }
+
+    /**
+     * The library must populate by itself: on API 23-32 that means asking for
+     * the storage permission once, automatically, instead of making the user
+     * discover a card or pick folders. Android 13+ has no such permission.
+     */
+    private fun maybeAskStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
+        if (viewModel.permissionPrompted || viewModel.permissionDenied) return
+        if (viewModel.hasStoragePermission()) return
+        viewModel.markPermissionPrompted()
+        requestStoragePermission()
     }
 
     override fun onResume() {
@@ -165,9 +179,18 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
                         binding.listCard.isVisible = !empty
                         if (empty) {
                             binding.empty.emptyAction.isVisible = true
-                            binding.empty.emptyAction.setText(R.string.empty_choose_folder)
-                            binding.empty.emptyAction.setOnClickListener {
-                                folderPicker.launch(null)
+                            val needsGrant = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU &&
+                                !viewModel.hasStoragePermission()
+                            if (needsGrant) {
+                                binding.empty.emptyAction.setText(R.string.perm_grant)
+                                binding.empty.emptyAction.setOnClickListener {
+                                    requestStoragePermission()
+                                }
+                            } else {
+                                binding.empty.emptyAction.setText(R.string.perm_import)
+                                binding.empty.emptyAction.setOnClickListener {
+                                    (activity as? MainActivity)?.launchImport()
+                                }
                             }
                         }
                     }
@@ -287,7 +310,8 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     // ------------------------------------------------------------- permission
 
     private fun updatePermissionCard() {
-        val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q &&
+        // Android 13+ has no document storage permission to ask for.
+        val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU &&
             !viewModel.hasStoragePermission()
         binding.permission.root.isVisible = needsPermission
         if (!needsPermission) return
@@ -309,7 +333,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     }
 
     private fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
         if (shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.perm_rationale_title)

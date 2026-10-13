@@ -109,7 +109,7 @@
     <!-- v1.1: folder grants (discovery), find-in-document, share, slides -->
     <string name="menu_add_folder">Add folder to library</string>
     <string name="menu_manage_folders">Remove added folders</string>
-    <string name="empty_choose_folder">Choose folder</string>
+
     <string name="toast_folder_added">Folder added</string>
     <string name="toast_folder_failed">Could not read that folder</string>
     <string name="toast_folders_removed">Added folders removed</string>

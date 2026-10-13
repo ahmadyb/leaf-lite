@@ -112,6 +112,14 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     var permissionDenied: Boolean = false
         private set
 
+    /** True once the automatic first-run permission prompt has been shown. */
+    var permissionPrompted: Boolean = false
+        private set
+
+    fun markPermissionPrompted() {
+        permissionPrompted = true
+    }
+
     fun onPermissionResult(granted: Boolean) {
         permissionDenied = !granted
         if (granted) rescan { }

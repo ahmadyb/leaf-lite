@@ -20,13 +20,14 @@ PdfBox, no MuPDF, no Gson, no DI framework, no native libraries.
 
 ## Features
 
-**Library** — layered discovery: SAF folder grants (persistent, works on every
-Android version) + MediaStore/Downloads fallback where scoped storage still
-shows files, six filter chips, live search by file name, sort sheet
-(name/date/size, both directions, persisted), rows showing
-`{Type} · {Size} · {Relative date}`, star toggle straight from the row,
+**Library** — automatic discovery: MediaStore scan populated on first launch
+(storage permission is asked once and silently on Android 6–12; Android 13+
+needs no permission and scans best-effort), six filter chips, live search by
+file name, sort sheet (name/date/size, both directions, persisted), rows
+showing `{Type} · {Size} · {Relative date}`, star toggle straight from the row,
 long-press to share, overflow menu with *Add folder · Manage folders ·
-Rescan device · Import file · Clear cache*.
+Rescan device · Import file · Clear cache* ("Add folder" supplements the scan
+for locations Android keeps hidden).
 
 **Starred** — the same rows, filtered to starred documents; starring from the
 viewer updates both tabs instantly.

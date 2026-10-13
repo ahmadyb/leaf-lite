@@ -67,6 +67,11 @@ class ViewerActivity : AppCompatActivity() {
     private var findIndex = 0
     private var pdfHits: List<Pair<Int, Int>> = emptyList() // page -> occurrence
     private var slideHits: List<Pair<Int, Int>> = emptyList() // slide -> occurrence
+    private var sheetHitRows: List<Int> = emptyList()
+
+    // pinch text-zoom
+    private var renderedScale = 1f
+    private var zoomJob: Runnable? = null
 
     // page accounting for the footer
     private var pageTops = IntArray(0)
@@ -208,6 +213,7 @@ class ViewerActivity : AppCompatActivity() {
         textMatches = emptyList()
         pdfHits = emptyList()
         slideHits = emptyList()
+        sheetHitRows = emptyList()
         findIndex = 0
     }
 
@@ -219,6 +225,7 @@ class ViewerActivity : AppCompatActivity() {
         textMatches = emptyList()
         pdfHits = emptyList()
         slideHits = emptyList()
+        sheetHitRows = emptyList()
         findIndex = 0
 
         val content = (viewModel.state.value as? ViewerViewModel.State.Ready)?.content
@@ -239,13 +246,27 @@ class ViewerActivity : AppCompatActivity() {
             is ViewerViewModel.Content.Sheets -> {
                 lifecycleScope.launch {
                     val sheet = viewModel.sheet(sheetIndex) ?: return@launch
-                    val rows = sheet.rows.indices.filter { row ->
-                        sheet.rows[row].cells.any { it.text.contains(query, ignoreCase = true) }
+                    val rows = ArrayList<Int>()
+                    sheet.rows.indices.forEach { row ->
+                        var rowHits = 0
+                        sheet.rows[row].cells.forEach { cell ->
+                            val hay = cell.text.lowercase()
+                            val needle = query.lowercase()
+                            var at = if (needle.isEmpty()) -1 else hay.indexOf(needle)
+                            while (at >= 0) {
+                                rowHits++
+                                at = hay.indexOf(needle, at + needle.length)
+                            }
+                        }
+                        if (rowHits > 0) rows += row
                     }
+                    sheetHitRows = rows
                     if (rows.isNotEmpty()) {
                         binding.sheetRecycler.scrollToPosition(rows.first())
                     }
+                    updateFindCount()
                 }
+                return
             }
             is ViewerViewModel.Content.Pdf -> {
                 lifecycleScope.launch {
@@ -277,11 +298,14 @@ class ViewerActivity : AppCompatActivity() {
         val total = findTotal()
         if (total == 0) return
         findIndex = ((findIndex + direction) % total + total) % total
-        val content = (viewModel.state.value as? ViewerViewModel.State.Ready)?.content
         when {
             textMatches.isNotEmpty() -> TextFinder.scrollTo(binding.scrollBody, textMatches[findIndex])
             slideHits.isNotEmpty() -> scrollToSlide(slideHits[findIndex].first)
             pdfHits.isNotEmpty() -> scrollToPdfPage(pdfHits[findIndex].first)
+            sheetHitRows.isNotEmpty() -> {
+                val row = sheetHitRows[findIndex.coerceAtMost(sheetHitRows.size - 1)]
+                binding.sheetRecycler.scrollToPosition(row)
+            }
         }
         updateFindCount()
     }
@@ -290,6 +314,7 @@ class ViewerActivity : AppCompatActivity() {
         textMatches.isNotEmpty() -> textMatches.size
         slideHits.isNotEmpty() -> slideHits.size
         pdfHits.isNotEmpty() -> pdfHits.size
+        sheetHitRows.isNotEmpty() -> sheetHitRows.size
         else -> 0
     }
 
@@ -355,9 +380,26 @@ class ViewerActivity : AppCompatActivity() {
             }
 
             override fun onScaleEnd(detector: ScaleGestureDetector) {
-                reRenderText(restoreScroll = true)
+                scheduleTextZoom()
             }
         })
+    }
+
+    /**
+     * Re-renders the text document at the new pinch scale, debounced and only
+     * when the scale actually changed — re-laying-out a whole document is not
+     * free, so tiny wobbles and repeat gestures are ignored.
+     */
+    private fun scheduleTextZoom() {
+        val holder = binding.root
+        zoomJob?.let { holder.removeCallbacks(it) }
+        val job = Runnable {
+            zoomJob = null
+            if (kotlin.math.abs(textScale - renderedScale) < 0.06f) return@Runnable
+            reRenderText(restoreScroll = true)
+        }
+        zoomJob = job
+        holder.postDelayed(job, 140L)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -438,6 +480,7 @@ class ViewerActivity : AppCompatActivity() {
             is ViewerViewModel.Content.Sheets -> showSheets(content.names)
             is ViewerViewModel.Content.Text -> {
                 showScroll(card = false)
+                renderedScale = textScale
                 ViewerRenderer.renderText(
                     container = binding.contentHolder,
                     blocks = content.blocks,
@@ -455,6 +498,7 @@ class ViewerActivity : AppCompatActivity() {
             }
             is ViewerViewModel.Content.Word -> {
                 showScroll(card = true)
+                renderedScale = textScale
                 ViewerRenderer.renderDocx(
                     container = binding.contentHolder,
                     blocks = content.blocks,
@@ -673,6 +717,7 @@ class ViewerActivity : AppCompatActivity() {
             }
             else -> return
         }
+        renderedScale = textScale
         if (restoreScroll) {
             binding.scrollBody.post { binding.scrollBody.scrollTo(0, scrollY) }
         }

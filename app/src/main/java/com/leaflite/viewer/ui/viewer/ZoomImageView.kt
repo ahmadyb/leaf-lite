@@ -37,6 +37,7 @@ class ZoomImageView @JvmOverloads constructor(
     private var dragging = false
     private var animator: ValueAnimator? = null
     private var swapping = false
+    private var zoomDirty = false
 
     var isZoomed: Boolean = false
         private set
@@ -96,26 +97,24 @@ class ZoomImageView @JvmOverloads constructor(
      * Swaps in a higher-resolution bitmap of the *same page* without losing
      * the zoom/pan. The drawable coordinate space grows by `k`, so the matrix
      * is pre-scaled by `1/k` to keep the on-screen view identical.
+     *
+     * A swap must NEVER reset the user's transform: same-size bitmaps are
+     * ignored entirely, and the scale/zoomed state stay untouched.
      */
     fun swapBitmap(bitmap: android.graphics.Bitmap) {
         val oldWidth = drawable?.intrinsicWidth ?: 0
+        if (oldWidth <= 0 || bitmap.width <= 0 || oldWidth == bitmap.width) return
         swapping = true
         setImageBitmap(bitmap)
         swapping = false
-        if (oldWidth > 0 && bitmap.width > 0 && oldWidth != bitmap.width) {
-            val k = bitmap.width.toFloat() / oldWidth.toFloat()
-            val correction = Matrix()
-            correction.setScale(1f / k, 1f / k)
-            matrix.preConcat(correction)
-            // drawableRect is in old drawable units; rebuild for the new one
-            drawableRect.set(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
-            constrain()
-            imageMatrix = matrix
-        } else {
-            computeFit()
-            matrix.set(fit)
-            imageMatrix = matrix
-        }
+        val k = bitmap.width.toFloat() / oldWidth.toFloat()
+        val correction = Matrix()
+        correction.setScale(1f / k, 1f / k)
+        matrix.preConcat(correction)
+        // drawableRect is in old drawable units; rebuild for the new one
+        drawableRect.set(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+        constrain()
+        imageMatrix = matrix
     }
 
     /** Recomputes the fit matrix (drawable centred and scaled to the view). */
@@ -187,7 +186,12 @@ class ZoomImageView @JvmOverloads constructor(
                 if (!dragging && !isZoomed) performClick()
                 parent?.requestDisallowInterceptTouchEvent(false)
                 dragging = false
-                if (isZoomed) onZoomSettled?.invoke(scale)
+                // Settle only after an actual zoom change — panning must not
+                // trigger bitmap swaps (that used to snap the zoom back).
+                if (isZoomed && zoomDirty) {
+                    zoomDirty = false
+                    onZoomSettled?.invoke(scale)
+                }
             }
             MotionEvent.ACTION_CANCEL -> {
                 parent?.requestDisallowInterceptTouchEvent(false)
@@ -211,6 +215,7 @@ class ZoomImageView @JvmOverloads constructor(
         matrix.postScale(factor, factor, focusX, focusY)
         scale = next
         isZoomed = scale > 1.01f
+        zoomDirty = true
         constrain()
         imageMatrix = matrix
     }
@@ -227,6 +232,7 @@ class ZoomImageView @JvmOverloads constructor(
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
+                    zoomDirty = false
                     if (isZoomed) onZoomSettled?.invoke(scale)
                 }
             })

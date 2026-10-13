@@ -380,3 +380,38 @@ re-grant read access to arbitrary receivers. Zero new dependencies.
 container re-renders the document at a new `textScale` (0.7×–2.5×) and keeps
 the scroll anchor. Cheap and consistent across the three text formats; slides
 stay geometry-accurate and PDF has its own zoom.
+
+## 12. v1.1.1 fixes (auto discovery, zoom regressions, find, CI coverage)
+
+**Why `maxSdkVersion="32"` and not 36.** `READ_EXTERNAL_STORAGE` is the only
+document permission Android ever gave normal apps, and Android 13 (API 33)
+*killed it for documents*: the OS no longer shows a dialog, grants nothing,
+and `READ_MEDIA_*` only covers images/video/audio. Declaring it through 36
+would be a dead entry (and Play flags unused permissions). 32 is the last API
+where requesting it actually unlocks other apps' documents (MediaStore.Files
+on 23-28, plus the Downloads collection on 29-32). On 33+ the scan is
+best-effort and "Add folder" exists as a supplement; the only mechanism that
+makes 33+ fully automatic is `MANAGE_EXTERNAL_STORAGE`, which the build
+prompt forbids.
+
+**Automatic library.** The permission prompt now happens once on first launch
+(not behind a card the user must discover), and the empty state leads with
+*Grant access* / *Import file* — folder picking is menu-only. `MediaStoreScanner`
+checks the real permission through 32 instead of assuming Q+ is always granted.
+
+**Zoom regressions (PDF).** `ZoomImageView.swapBitmap` used to reset the
+transform when handed a bitmap of the same width (which happened on every
+pan finger-up after the hi-res swap): the zoom snapped back to fit while the
+internal `scale` stayed >1, so the next double-tap shrank the page below fit.
+Swaps now never touch the transform at equal size, `onZoomSettled` fires only
+after a real zoom change (pinch or double-tap, never after pans), and
+`upgradeHiRes` leaves an already-displayed sharp bitmap alone. Text pinch-zoom
+re-renders are debounced (140 ms) and skipped when the scale barely moved.
+
+**Find fixes.** Spreadsheets track matched rows for counting/stepping (the
+count used to claim "No matches" while highlighting rows), and the PDF text
+extractor is now pinned by JVM tests (`PdfTextExtractorTest`) over the same
+uncompressed-Tj structure `make_samples.py` produces.
+
+**CI.** The instrumented smoke job is a matrix: API 23 (minSdk floor) and
+API 35 (modern scoped storage) so behavior is exercised at both ends.

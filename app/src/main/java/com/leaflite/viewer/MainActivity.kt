@@ -138,9 +138,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Only ever called on API 23-28 (see LibraryFragment). */
+    /** Requested on API 23-32; Android 13+ has no document storage permission. */
     fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
         permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 

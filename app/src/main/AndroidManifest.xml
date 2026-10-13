@@ -4,15 +4,17 @@
 
     <!--
       The ONLY permission Leaf Lite ever declares. Requested at runtime on
-      API 23-29 (maxSdkVersion="29"): on 23-28 it unlocks MediaStore scans,
-      and on 29 (Android 10) it still covers other apps' download documents.
-      From API 30 on, scoped storage hides other apps' documents entirely and
-      the SAF "Add folder to library" flow is the supported channel. There is
-      deliberately no INTERNET permission and no WRITE/MANAGE_EXTERNAL_STORAGE.
+      API 23-32 (maxSdkVersion="32"): it unlocks automatic MediaStore document
+      discovery through Android 12, including other apps' files in the
+      Downloads collection on 29+. Android 13+ removed this permission for
+      documents entirely (no dialog, nothing to grant), so it is deliberately
+      not requested there; the scan is best-effort on 33+ and "Add folder"
+      remains available as a supplement. No INTERNET permission and no
+      WRITE/MANAGE_EXTERNAL_STORAGE.
     -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29" />
+        android:maxSdkVersion="32" />
 
     <!--
       Not a permission: lets the "Open in another app" fallback resolve viewer

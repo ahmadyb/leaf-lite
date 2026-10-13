@@ -38,7 +38,9 @@ class MediaStoreScanner(private val context: Context) {
     )
 
     fun hasStoragePermission(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return true
+        // Android 13+ removed the document-wide storage permission; the scan
+        // is best-effort there (own files + whatever the ROM still exposes).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return true
         return ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.READ_EXTERNAL_STORAGE

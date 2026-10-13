@@ -131,17 +131,24 @@ class PdfPageAdapter(
         /**
          * Zoom quality: when the user zooms past ~1.2x, re-render the page
          * from the PDF vectors at the zoomed resolution and swap it in without
-         * losing the transform. Only one hi-res page is kept alive.
+         * losing the transform. Only one hi-res page is kept alive. Pans never
+         * trigger a swap, and a bitmap that is already displayed is left alone.
          */
         private fun upgradeHiRes(page: Int, base: Int, scale: Float) {
             if (scale < 1.2f) return
             val target = (base * scale).toInt().coerceIn(base, MAX_HIRES_PX)
             val existing = hiRes[page]
-            if (existing != null && !existing.isRecycled && existing.width >= (target * 0.85f).toInt()) {
-                binding.pageImage.swapBitmap(existing)
-                return
+            val showing = binding.pageImage.drawable
+            if (existing != null && !existing.isRecycled) {
+                if (showing === existing) return
+                if (existing.width >= (target * 0.85f).toInt()) {
+                    binding.pageImage.swapBitmap(existing)
+                    return
+                }
             }
-            hiResJob?.cancel()
+            if (hiResJob?.isActive == true) {
+                hiResJob?.cancel()
+            }
             hiResJob = scope.launch {
                 val rendered = render(page, target) ?: return@launch
                 if (this@PageVH.position != page) {
