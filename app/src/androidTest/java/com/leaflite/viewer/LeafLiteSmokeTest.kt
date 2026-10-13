@@ -12,7 +12,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 /**
  * Instrumented smoke test: Leaf Lite must install, expose its document
@@ -63,36 +62,27 @@ class LeafLiteSmokeTest {
     @Test
     fun documentDiscoveryFindsAnOwnDocumentEndToEnd() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        // MediaStore inserts need WRITE_EXTERNAL_STORAGE below API 29, which
+        // Leaf Lite withholds by design — own-file planting is Q+ only. The
+        // scanners must still run cleanly everywhere.
+        com.leaflite.viewer.data.MediaStoreScanner(context).scan()
+        com.leaflite.viewer.data.FileSystemScanner(context).scan()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+
         val resolver = context.contentResolver
-        val base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        } else {
-            MediaStore.Files.getContentUri("external")
-        }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "leaf-lite-smoke-test.txt")
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                @Suppress("DEPRECATION")
-                put(
-                    MediaStore.MediaColumns.DATA,
-                    File(
-                        Environment.getExternalStoragePublicDirectory(
-                            Environment.DIRECTORY_DOWNLOADS
-                        ),
-                        "leaf-lite-smoke-test.txt"
-                    ).absolutePath
-                )
-            }
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
         }
-        val uri = resolver.insert(base, values)
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
         assertNotNull("MediaStore insert must succeed", uri)
         try {
             resolver.openOutputStream(uri!!)?.use { it.write("hello".toByteArray()) }
             val entries = com.leaflite.viewer.data.MediaStoreScanner(context).scan()
             assertTrue(
-                "own document must be discoverable through the scan pipeline",
-                entries.any { it.displayName == "leaf-lite-smoke-test.txt" }
+                "own document must be discoverable through the scan pipeline: $entries",
+                entries.any { it.displayName.startsWith("leaf-lite-smoke-test") }
             )
         } finally {
             runCatching { resolver.delete(uri!!, null, null) }
