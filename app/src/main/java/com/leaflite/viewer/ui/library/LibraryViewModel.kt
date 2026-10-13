@@ -77,7 +77,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Exports a document to the FileProvider cache for ACTION_SEND. */
     suspend fun shareExport(doc: Doc): ShareOut.Export = withContext(Dispatchers.IO) {
-        ShareOut.export(getApplication(), doc.uri, doc.displayName, doc.type.primaryMime)
+        ShareOut.export(getApplication(), Uri.parse(doc.uri), doc.displayName, doc.type.primaryMime)
     }
 
     fun clearFolders(onDone: (Boolean) -> Unit) {

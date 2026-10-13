@@ -1,9 +1,11 @@
 package com.leaflite.viewer.ui.starred
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -31,8 +33,35 @@ class StarredFragment : Fragment(R.layout.fragment_starred) {
     private val adapter: DocumentAdapter by lazy {
         DocumentAdapter(
             onOpen = { doc -> openDocument(doc) },
-            onStar = { doc -> viewModel.toggleStar(doc) }
+            onStar = { doc -> viewModel.toggleStar(doc) },
+            onShare = { doc -> shareDocument(doc) }
         )
+    }
+
+    /** Long-press share: copies the doc to the cache and offers ACTION_SEND. */
+    private fun shareDocument(doc: Doc) {
+        lifecycleScope.launch {
+            val export = com.leaflite.viewer.util.ShareOut.export(
+                requireContext(),
+                Uri.parse(doc.uri),
+                doc.displayName,
+                doc.type.primaryMime
+            )
+            if (export.uri == null) {
+                Toast.makeText(requireContext(), R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = export.mime ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, export.uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            try {
+                startActivity(Intent.createChooser(send, null))
+            } catch (notFound: ActivityNotFoundException) {
+                Toast.makeText(requireContext(), R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

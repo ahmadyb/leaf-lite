@@ -123,7 +123,7 @@ object PdfTextExtractor {
         return content.toString().replace(Regex("[ \\t]+"), " ").trim()
     }
 
-    private fun collectFontMaps(pageBody: ByteArray, objects: Map<Int, ByteArray>): Map<String, CodeMap> {
+    private fun collectFontMaps(pageBody: String, objects: Map<Int, ByteArray>): Map<String, CodeMap> {
         val result = HashMap<String, CodeMap>()
         val resourcesTail = pageBody.substringAfter("/Resources", "").take(400)
         val fontDict = resourcesTail.substringAfter("/Font", "")

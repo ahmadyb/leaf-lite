@@ -271,7 +271,7 @@ object ViewerRenderer {
             used += item.second
         }
         if (current.isNotEmpty()) pages += current
-        if (pages.isEmpty()) pages += ArrayList()
+        if (pages.isEmpty()) pages.add(ArrayList())
 
         pages.forEach { pageItems ->
             val page = pageCard(context, sepia, pageHeight)
