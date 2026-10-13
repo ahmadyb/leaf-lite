@@ -2,6 +2,7 @@ package com.leaflite.viewer.ui.viewer
 
 import android.content.Context
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.method.LinkMovementMethod
@@ -311,14 +312,31 @@ object ViewerRenderer {
     ): LinearLayout {
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundResource(R.drawable.bg_sheet_card)
+            if (sepia) {
+                // Sepia pages are cream: table surfaces must be warm too
+                // (theme `card` is near-black in the night theme).
+                background = GradientDrawable().apply {
+                    setColor(ContextCompat.getColor(context, R.color.sepia_table))
+                    cornerRadius = dp(context, 12f)
+                    setStroke(dp(context, 1f), ContextCompat.getColor(context, R.color.sepia_line))
+                }
+            } else {
+                setBackgroundResource(R.drawable.bg_sheet_card)
+            }
         }
         val columns = table.rows.maxOfOrNull { it.size }?.coerceAtLeast(1) ?: 1
         table.rows.forEachIndexed { rowIndex, row ->
             val rowView = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                if (rowIndex == 0 && table.headerRow && !sepia) {
-                    setBackgroundColor(ContextCompat.getColor(context, R.color.sheet_header))
+                if (rowIndex == 0 && table.headerRow) {
+                    setBackgroundColor(
+                        ContextCompat.getColor(
+                            context,
+                            if (sepia) R.color.sepia_header else R.color.sheet_header
+                        )
+                    )
+                } else if (sepia) {
+                    setBackgroundColor(ContextCompat.getColor(context, R.color.sepia_table))
                 } else {
                     setBackgroundResource(R.drawable.bg_grid_row)
                 }
@@ -344,13 +362,31 @@ object ViewerRenderer {
                 if (column < columns - 1) {
                     rowView.addView(
                         View(context).apply {
-                            setBackgroundColor(ContextCompat.getColor(context, R.color.line))
+                            setBackgroundColor(
+                                ContextCompat.getColor(
+                                    context,
+                                    if (sepia) R.color.sepia_line else R.color.line
+                                )
+                            )
                         },
                         LinearLayout.LayoutParams(dp(context, 1f), ViewGroup.LayoutParams.MATCH_PARENT)
                     )
                 }
             }
             root.addView(rowView)
+            if (rowIndex < table.rows.lastIndex) {
+                root.addView(
+                    View(context).apply {
+                        setBackgroundColor(
+                            ContextCompat.getColor(
+                                context,
+                                if (sepia) R.color.sepia_line else R.color.line
+                            )
+                        )
+                    },
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(context, 1f))
+                )
+            }
         }
         return root
     }

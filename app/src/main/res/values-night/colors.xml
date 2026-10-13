@@ -27,6 +27,9 @@
          reading surface), but the surrounding chrome uses the dark palette. -->
     <color name="sepia_page">#F7F1E3</color>
     <color name="sepia_text">#3D3428</color>
+    <color name="sepia_table">#FCF8EE</color>
+    <color name="sepia_header">#EADDC0</color>
+    <color name="sepia_line">#D6C7A6</color>
 
     <color name="type_pdf">#F2686C</color>
     <color name="type_docx">#5B8DEF</color>

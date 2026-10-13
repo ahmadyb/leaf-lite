@@ -27,6 +27,7 @@ class DocumentRepository(context: Context) {
     private val app: Context = context.applicationContext
     private val db = FileRegistryDb(app)
     private val scanner = MediaStoreScanner(app)
+    private val fileScanner = FileSystemScanner(app)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _documents = MutableStateFlow<List<Doc>>(emptyList())
@@ -66,9 +67,13 @@ class DocumentRepository(context: Context) {
         val granted = scanner.hasStoragePermission()
 
         if (granted) {
-            val entries = scanner.scan() ?: emptyList()
+            val entries = scanner.scan()
+            val walked = fileScanner.scan()
             val seen = HashSet<String>(entries.size * 2)
-            entries.forEach { entry ->
+            val dedupe = HashSet<String>(entries.size * 2)
+            (entries + walked).forEach { entry ->
+                val key = "${entry.displayName}|${entry.size}"
+                if (!dedupe.add(key)) return@forEach
                 val uri = Uri.parse(entry.uri)
                 val type = FormatDetector.detect(entry.displayName, entry.mime) {
                     app.contentResolver.openInputStream(uri)

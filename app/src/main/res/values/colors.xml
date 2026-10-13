@@ -33,6 +33,9 @@
     <!-- sepia reading variant (viewer body while Night reading mode is on) -->
     <color name="sepia_page">#F7F1E3</color>
     <color name="sepia_text">#3D3428</color>
+    <color name="sepia_table">#FCF8EE</color>
+    <color name="sepia_header">#EADDC0</color>
+    <color name="sepia_line">#D6C7A6</color>
 
     <!-- per file-type accent colours (icon tint; tile = 12% over card) -->
     <color name="type_pdf">#E5484D</color>

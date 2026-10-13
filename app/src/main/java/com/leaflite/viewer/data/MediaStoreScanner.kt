@@ -48,10 +48,8 @@ class MediaStoreScanner(private val context: Context) {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    /** Returns the discovered entries, or `null` when storage access is denied. */
-    fun scan(): List<Entry>? {
-        if (!hasStoragePermission()) return null
-
+    /** Best-effort discovery; own files are returned even without a grant. */
+    fun scan(): List<Entry> {
         val entries = LinkedHashMap<String, Entry>(256)
 
         // Downloads first: on API 29+ other apps' documents live there and the
@@ -137,7 +135,7 @@ class MediaStoreScanner(private val context: Context) {
         }
     }
 
-    private companion object {
+    internal companion object {
         const val MAX_ROWS = 5000
         val EXTENSIONS = listOf("pdf", "docx", "xlsx", "pptx", "txt", "md", "markdown", "text")
     }

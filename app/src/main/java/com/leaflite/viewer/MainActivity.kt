@@ -145,15 +145,16 @@ class MainActivity : AppCompatActivity() {
     /** Handles every band: runtime permission on 23-32, All files on 33+. */
     fun requestStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val intent = try {
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-            } catch (notFound: ActivityNotFoundException) {
-                Intent(
-                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
+            val specific = Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            val generic = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            val opened = runCatching { startActivity(specific); true }.getOrDefault(false) ||
+                runCatching { startActivity(generic); true }.getOrDefault(false)
+            if (!opened) {
+                Toast.makeText(this, R.string.perm_all_files_unavailable, Toast.LENGTH_LONG).show()
             }
-            runCatching { startActivity(intent) }
             return
         }
         permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)

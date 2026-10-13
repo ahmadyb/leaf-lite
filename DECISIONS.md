@@ -422,5 +422,24 @@ count used to claim "No matches" while highlighting rows), and the PDF text
 extractor is now pinned by JVM tests (`PdfTextExtractorTest`) over the same
 uncompressed-Tj structure `make_samples.py` produces.
 
+**v1.1.3: discovery robustness (files still showed 0).** MediaStore only
+lists what the media scanner indexed — adb-pushed files, OEM copies and
+fresh volumes can be invisible to it even with every permission granted.
+`FileSystemScanner` now walks shared storage directly alongside MediaStore
+(with the same legal access: READ on 23-28, All files on 30+), and the two
+feeds are de-duplicated by name+size. `MediaStoreScanner.scan()` is
+best-effort instead of failing closed, and the All files intent opens the
+*package-specific* settings screen first (the generic action silently opened
+a confusing global list on some devices and failed on others). The
+instrumented suite now plants an own document and asserts the pipeline finds
+it on both smoke APIs.
+
+**v1.1.3: dark-mode tables rendered dark.** DOCX table surfaces used theme
+`card`, which is near-black in the night theme, while Night reading mode
+paints cream sepia pages and forces `sepia_text` (dark brown) onto cells —
+dark-on-dark. Tables in sepia mode now use warm surfaces
+(`sepia_table`/`sepia_header`/`sepia_line`); dark-page mode keeps the mockup
+look (dark header cells with adapted light runs).
+
 **CI.** The instrumented smoke job is a matrix: API 23 (minSdk floor) and
 API 35 (modern scoped storage) so behavior is exercised at both ends.
