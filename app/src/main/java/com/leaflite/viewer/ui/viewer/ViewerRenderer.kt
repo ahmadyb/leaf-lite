@@ -317,7 +317,7 @@ object ViewerRenderer {
                 // (theme `card` is near-black in the night theme).
                 background = GradientDrawable().apply {
                     setColor(ContextCompat.getColor(context, R.color.sepia_table))
-                    cornerRadius = dp(context, 12f)
+                    cornerRadius = dp(context, 12f).toFloat()
                     setStroke(dp(context, 1f), ContextCompat.getColor(context, R.color.sepia_line))
                 }
             } else {
