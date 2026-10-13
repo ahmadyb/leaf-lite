@@ -103,6 +103,30 @@
     <string name="pdf_footer">Page %1$d of %2$d</string>
     <string name="sheet_footer">Sheet %1$d of %2$d · %3$d rows</string>
     <string name="sheet_footer_truncated">Sheet %1$d of %2$d · %3$d rows · showing first %4$d</string>
+    <string name="docx_footer">Page %1$d of %2$d</string>
+    <string name="slide_footer">Slide %1$d of %2$d</string>
+
+    <!-- v1.1: folder grants (discovery), find-in-document, share, slides -->
+    <string name="menu_add_folder">Add folder to library</string>
+    <string name="menu_manage_folders">Remove added folders</string>
+    <string name="empty_choose_folder">Choose folder</string>
+    <string name="toast_folder_added">Folder added</string>
+    <string name="toast_folder_failed">Could not read that folder</string>
+    <string name="toast_folders_removed">Added folders removed</string>
+    <string name="toast_no_folders">No added folders</string>
+    <string name="cd_find">Search in document</string>
+    <string name="cd_find_next">Next match</string>
+    <string name="cd_find_prev">Previous match</string>
+    <string name="cd_find_close">Close search</string>
+    <string name="find_hint">Search in document</string>
+    <string name="find_no_matches">No matches</string>
+    <string name="find_count">%1$d/%2$d</string>
+    <string name="cd_share">Share document</string>
+    <string name="toast_share_failed">Could not share this file</string>
+    <string name="type_pptx">PowerPoint</string>
+    <string name="chip_slides">Slides</string>
+    <string name="section_slides">Slides · %1$d</string>
+    <string name="content_desc_slide">Slide %1$d</string>
     <string name="viewer_sub">%1$s · %2$s</string>
     <string name="viewer_loading">Opening document…</string>
     <string name="viewer_monospace">Monospace</string>

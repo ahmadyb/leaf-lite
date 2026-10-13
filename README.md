@@ -20,33 +20,39 @@ PdfBox, no MuPDF, no Gson, no DI framework, no native libraries.
 
 ## Features
 
-**Library** — MediaStore discovery, six filter chips, live search by file name,
-sort sheet (name/date/size, both directions, persisted), rows showing
-`{Type} · {Size} · {Relative date}`, star toggle straight from the row, overflow
-menu with *Rescan device · Import file · Clear cache*.
+**Library** — layered discovery: SAF folder grants (persistent, works on every
+Android version) + MediaStore/Downloads fallback where scoped storage still
+shows files, six filter chips, live search by file name, sort sheet
+(name/date/size, both directions, persisted), rows showing
+`{Type} · {Size} · {Relative date}`, star toggle straight from the row,
+long-press to share, overflow menu with *Add folder · Manage folders ·
+Rescan device · Import file · Clear cache*.
 
 **Starred** — the same rows, filtered to starred documents; starring from the
 viewer updates both tabs instantly.
 
-**Viewer** — full screen, slides in from the right, star toggle, title +
-`{Type} · {Size}` sub-line:
+**Viewer** — full screen, slides in from the right, star + share, find in
+document, title + `{Type} · {Size}` sub-line:
 
 | Format | Engine |
 | --- | --- |
-| PDF | `android.graphics.pdf.PdfRenderer` — paged list, pinch/double-tap zoom, *Page X of Y* |
-| DOCX | ZIP + `XmlPullParser` — headings, bold/italic/underline/strike, sizes, colours, alignment, lists, tables, links, inline images |
-| XLSX | ZIP + `XmlPullParser` — shared strings, styles, multiple sheets with switcher chips, numbers/strings/dates, *Sheet i of n · N rows* |
-| TXT | BOM + strict-UTF-8 → windows-1252 charset detection, comfortable reading layout, monospace toggle |
-| MD | ~300-line hand-written Markdown parser — headings, emphasis, inline code, fenced code, quotes, lists, rules, links |
+| PDF | `android.graphics.pdf.PdfRenderer` — paged list, pinch/double-tap zoom with settled-quality re-render, *Page X of Y*, page-text find |
+| DOCX | ZIP + `XmlPullParser` — measured pagination onto page sheets, headings, bold/italic/underline/strike, sizes, colours, alignment, lists, tables, links, inline images, pinch text-zoom, *Page X of Y* |
+| PPTX | ZIP + `XmlPullParser` — positioned text boxes, bullets, run colours, pictures, slide-size scaling, *Slide X of Y* |
+| XLSX | ZIP + `XmlPullParser` — shared strings, styles, multiple sheets with switcher chips, numbers/strings/dates, cell find, *Sheet i of n · N rows* |
+| TXT | BOM + strict-UTF-8 → windows-1252 charset detection, comfortable reading layout, monospace toggle, pinch text-zoom |
+| MD | ~300-line hand-written Markdown parser — headings, emphasis, inline code, fenced code, quotes, lists, rules, links, pinch text-zoom |
 
 **Settings** — Night reading mode (dark chrome + sepia reading page), Keep screen
 on, Compact list, Version and Supported formats info dialogs, plus a library
 summary card (`N documents · scanned 2 min ago`).
 
-**Share target** — "Open with → Leaf Lite" for all five MIME types
-(`application/pdf`, the two OOXML types, `text/plain`, `text/markdown`,
+**Share target** — "Open with → Leaf Lite" for all supported MIME types
+(`application/pdf`, the three OOXML types, `text/plain`, `text/markdown`,
 `text/x-markdown`). Corrupt or unsupported files degrade to
-*Preview not available* + **Open in another app** (via FileProvider).
+*Preview not available* + **Open in another app**. Every document can also be
+shared **out** (viewer share button, row long-press) through the
+FileProvider cache.
 
 ---
 

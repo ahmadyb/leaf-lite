@@ -1,6 +1,7 @@
 package com.leaflite.viewer.ui.library
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -11,6 +12,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -32,7 +34,9 @@ import com.leaflite.viewer.databinding.FragmentLibraryBinding
 import com.leaflite.viewer.databinding.SheetSortBinding
 import com.leaflite.viewer.ui.widgets.InsetDivider
 import com.leaflite.viewer.util.matchStatusBarHeight
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Library tab: search, filter chips, sort sheet, document list, permission flow. */
 class LibraryFragment : Fragment(R.layout.fragment_library) {
@@ -45,8 +49,30 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     private val adapter: DocumentAdapter by lazy {
         DocumentAdapter(
             onOpen = { doc -> openDocument(doc) },
-            onStar = { doc -> viewModel.toggleStar(doc) }
+            onStar = { doc -> viewModel.toggleStar(doc) },
+            onShare = { doc -> shareDocument(doc) }
         )
+    }
+
+    /** Long-press share: copies the doc to the cache and offers ACTION_SEND. */
+    private fun shareDocument(doc: Doc) {
+        lifecycleScope.launch {
+            val export = viewModel.shareExport(doc)
+            if (export.uri == null) {
+                Toast.makeText(requireContext(), R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = export.mime ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, export.uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            try {
+                startActivity(Intent.createChooser(send, null))
+            } catch (notFound: ActivityNotFoundException) {
+                Toast.makeText(requireContext(), R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -137,6 +163,13 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
                         val empty = documents.isEmpty()
                         binding.empty.root.isVisible = empty
                         binding.listCard.isVisible = !empty
+                        if (empty) {
+                            binding.empty.emptyAction.isVisible = true
+                            binding.empty.emptyAction.setText(R.string.empty_choose_folder)
+                            binding.empty.emptyAction.setOnClickListener {
+                                folderPicker.launch(null)
+                            }
+                        }
                     }
                 }
                 launch {
@@ -157,6 +190,21 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
 
     // ------------------------------------------------------------ interactions
 
+    private val folderPicker = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { tree ->
+        if (tree == null) return@registerForActivityResult
+        lifecycleScope.launch {
+            val added = withContext(Dispatchers.IO) { viewModel.addTree(tree) }
+            if (added) {
+                Toast.makeText(requireContext(), R.string.toast_folder_added, Toast.LENGTH_SHORT).show()
+                rescan()
+            } else {
+                Toast.makeText(requireContext(), R.string.toast_folder_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun openDocument(doc: Doc) {
         startActivity(Intent(requireContext(), ViewerActivity::class.java).apply {
             data = Uri.parse(doc.uri)
@@ -170,6 +218,14 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     R.id.menu_rescan -> rescan()
+                    R.id.menu_add_folder -> folderPicker.launch(null)
+                    R.id.menu_manage_folders -> viewModel.clearFolders {
+                        Toast.makeText(
+                            requireContext(),
+                            if (it) R.string.toast_folders_removed else R.string.toast_no_folders,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                     R.id.menu_import -> (activity as? MainActivity)?.launchImport()
                     R.id.menu_clear_cache -> viewModel.clearCache {
                         Toast.makeText(
@@ -186,7 +242,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     }
 
     private fun rescan() {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && !viewModel.hasStoragePermission()) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q && !viewModel.hasStoragePermission()) {
             updatePermissionCard()
             requestStoragePermission()
             return
@@ -231,7 +287,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     // ------------------------------------------------------------- permission
 
     private fun updatePermissionCard() {
-        val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+        val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q &&
             !viewModel.hasStoragePermission()
         binding.permission.root.isVisible = needsPermission
         if (!needsPermission) return
@@ -253,7 +309,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     }
 
     private fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) return
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) return
         if (shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.perm_rationale_title)

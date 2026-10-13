@@ -137,20 +137,27 @@ class FileRegistryDb(context: Context) :
     }
 
     /**
-     * Drops scanned rows whose URI was not seen during the latest scan (the
-     * file was deleted or moved). Imported and intent-opened rows are kept:
-     * their URIs are backed by persisted permissions outside MediaStore.
+     * Drops rows whose URI was not seen during the latest scan of [source] (the
+     * file was deleted, moved, or a folder grant was revoked). Imported and
+     * intent-opened rows are kept: their URIs are backed by persisted
+     * permissions outside MediaStore.
      */
-    fun pruneScannedNotIn(seen: Set<String>): Int {
-        if (seen.isEmpty()) return 0
+    fun pruneSourceNotIn(source: String, seen: Set<String>): Int {
+        if (seen.isEmpty()) {
+            return writableDatabase.delete(TABLE, "$COL_SOURCE = ?", arrayOf(source))
+        }
         val placeholders = seen.joinToString(",") { "?" }
-        val args = seen.toTypedArray()
+        val args = arrayOf(source, *seen.toTypedArray())
         return writableDatabase.delete(
             TABLE,
-            "$COL_SOURCE = '${DocumentRepository.SOURCE_SCAN}' AND $COL_URI NOT IN ($placeholders)",
+            "$COL_SOURCE = ? AND $COL_URI NOT IN ($placeholders)",
             args
         )
     }
+
+    /** Legacy entry point: prunes MediaStore-scanned rows only. */
+    fun pruneScannedNotIn(seen: Set<String>): Int =
+        pruneSourceNotIn(DocumentRepository.SOURCE_SCAN, seen)
 
     fun deleteAll() {
         writableDatabase.delete(TABLE, null, null)

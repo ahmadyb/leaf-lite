@@ -24,6 +24,7 @@ object FormatDetector {
             "pdf" -> DocType.PDF
             "docx" -> DocType.DOCX
             "xlsx" -> DocType.XLSX
+            "pptx", "pptm" -> DocType.PPTX
             "txt", "text" -> DocType.TXT
             "md", "markdown" -> DocType.MD
             else -> null
@@ -71,12 +72,13 @@ object FormatDetector {
         }
     }
 
-    /** OOXML files are ZIPs: look inside to tell Word from Excel. */
+    /** OOXML files are ZIPs: look inside to tell Word from Excel from PowerPoint. */
     private fun probeZip(open: () -> InputStream?): DocType? {
         val names = Zipx.entryNames(open, limit = 128)
         return when {
             names.contains("word/document.xml") -> DocType.DOCX
             names.contains("xl/workbook.xml") -> DocType.XLSX
+            names.contains("ppt/presentation.xml") -> DocType.PPTX
             else -> null
         }
     }

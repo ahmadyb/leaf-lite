@@ -31,6 +31,7 @@
     <color name="type_pdf">#F2686C</color>
     <color name="type_docx">#5B8DEF</color>
     <color name="type_xlsx">#3DBE71</color>
+    <color name="type_pptx">#F09468</color>
     <color name="type_txt">#94A3B8</color>
     <color name="type_md">#A88BF9</color>
 

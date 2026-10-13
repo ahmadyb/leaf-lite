@@ -19,6 +19,8 @@ class FormatDetectorTest {
         assertEquals(DocType.PDF, FormatDetector.fromName("Q3 report.PDF"))
         assertEquals(DocType.DOCX, FormatDetector.fromName("brief.docx"))
         assertEquals(DocType.XLSX, FormatDetector.fromName("budget.xlsx"))
+        assertEquals(DocType.PPTX, FormatDetector.fromName("deck.pptx"))
+        assertEquals(DocType.PPTX, FormatDetector.fromName("deck.PPTM"))
         assertEquals(DocType.TXT, FormatDetector.fromName("notes.text"))
         assertEquals(DocType.MD, FormatDetector.fromName("README.markdown"))
         assertNull(FormatDetector.fromName("archive.zip"))
@@ -50,6 +52,9 @@ class FormatDetectorTest {
 
         val xlsx = zipOf("xl/workbook.xml" to "<workbook/>")
         assertEquals(DocType.XLSX, FormatDetector.sniff { ByteArrayInputStream(xlsx) })
+
+        val pptx = zipOf("ppt/presentation.xml" to "<p:presentation/>")
+        assertEquals(DocType.PPTX, FormatDetector.sniff { ByteArrayInputStream(pptx) })
     }
 
     @Test

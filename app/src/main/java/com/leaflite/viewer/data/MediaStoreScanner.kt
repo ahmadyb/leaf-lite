@@ -10,14 +10,22 @@ import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 
 /**
- * Discovers documents already on the device through MediaStore.Files.
+ * Discovers documents already on the device through MediaStore.
  *
- * * API 29+: no permission required (scoped storage), so we never prompt.
- * * API 23-28: the caller must hold READ_EXTERNAL_STORAGE; [scan] returns
- *   `null` when it does not, so the UI can fall back to the SAF import card.
+ * Query strategy per API level:
  *
- * MIME type is frequently null in MediaStore, so the query always falls back to
- * a file-name match on the five supported extensions.
+ * * API 23-28: `MediaStore.Files` with `READ_EXTERNAL_STORAGE` (runtime prompt).
+ * * API 29:    `READ_EXTERNAL_STORAGE` still grants access to other apps'
+ *              files (incl. downloads), so ask for it and query both tables.
+ * * API 30+:   scoped storage hides other apps' documents from MediaStore
+ *              entirely, so this is best-effort (own files + any ROM that
+ *              still exposes downloads). The reliable path on 30+ is the SAF
+ *              folder grant — see [SafTreeScanner].
+ *
+ * MIME type is frequently null in MediaStore, so every query matches on file
+ * name extensions as well. `LIMIT` in the sort order is not accepted by every
+ * OEM provider, so it is only a fast path; failures retry without it and trim
+ * in memory.
  */
 class MediaStoreScanner(private val context: Context) {
 
@@ -41,8 +49,18 @@ class MediaStoreScanner(private val context: Context) {
     fun scan(): List<Entry>? {
         if (!hasStoragePermission()) return null
 
-        val resolver = context.contentResolver
-        val baseUri = MediaStore.Files.getContentUri("external")
+        val entries = LinkedHashMap<String, Entry>(256)
+
+        // Downloads first: on API 29+ other apps' documents live there and the
+        // Files table under scoped storage only surfaces media.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            collect(MediaStore.Downloads.EXTERNAL_CONTENT_URI, entries)
+        }
+        collect(MediaStore.Files.getContentUri("external"), entries)
+        return entries.values.toList()
+    }
+
+    private fun collect(baseUri: android.net.Uri, out: LinkedHashMap<String, Entry>) {
         val projection = arrayOf(
             MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.DISPLAY_NAME,
@@ -52,69 +70,72 @@ class MediaStoreScanner(private val context: Context) {
         )
 
         val args = ArrayList<String>()
-        val mimeClauses = ArrayList<String>()
+        val nameClauses = ArrayList<String>()
         DocType.values().forEach { type ->
             type.mimeTypes.forEach { mime ->
-                mimeClauses.add("${MediaStore.Files.FileColumns.MIME_TYPE} = ?")
+                nameClauses.add("${MediaStore.Files.FileColumns.MIME_TYPE} = ?")
                 args.add(mime)
             }
         }
-        val nameClauses = ArrayList<String>()
         EXTENSIONS.forEach { ext ->
             nameClauses.add("${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE ?")
             args.add("%.$ext")
         }
+        val selection = nameClauses.joinToString(" OR ")
 
-        val selection = buildString {
-            append('(')
-            append(mimeClauses.joinToString(" OR "))
-            append(" OR ")
-            append(nameClauses.joinToString(" OR "))
-            append(") AND ")
-            append(MediaStore.Files.FileColumns.SIZE).append(" > 0 AND ")
-            append(MediaStore.Files.FileColumns.MEDIA_TYPE).append(" = ")
-            append(MediaStore.Files.FileColumns.MEDIA_TYPE_NONE)
-        }
-
-        val entries = ArrayList<Entry>(256)
         var cursor: Cursor? = null
         try {
-            cursor = resolver.query(
-                baseUri,
-                projection,
-                selection,
-                args.toTypedArray(),
-                "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC LIMIT $MAX_ROWS"
-            )
-            if (cursor == null) return emptyList()
+            cursor = try {
+                context.contentResolver.query(
+                    baseUri,
+                    projection,
+                    selection,
+                    args.toTypedArray(),
+                    "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC LIMIT $MAX_ROWS"
+                )
+            } catch (rejected: IllegalArgumentException) {
+                // Some providers refuse LIMIT in the sort order.
+                context.contentResolver.query(
+                    baseUri,
+                    projection,
+                    selection,
+                    args.toTypedArray(),
+                    "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
+                )
+            }
+            if (cursor == null) return
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
             val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
             val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
             val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
             val mimeIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
-            while (cursor.moveToNext()) {
+            while (cursor.moveToNext() && out.size < MAX_ROWS) {
                 val id = cursor.getLong(idIndex)
                 val name = cursor.getString(nameIndex) ?: continue
-                entries += Entry(
-                    uri = ContentUris.withAppendedId(baseUri, id).toString(),
+                val size = cursor.getLong(sizeIndex)
+                if (size <= 0L) continue
+                val uri = ContentUris.withAppendedId(baseUri, id).toString()
+                if (uri in out) continue
+                out[uri] = Entry(
+                    uri = uri,
                     displayName = name,
                     mime = cursor.getString(mimeIndex),
-                    size = cursor.getLong(sizeIndex),
+                    size = size,
                     dateModified = cursor.getLong(dateIndex) * 1000L
                 )
             }
         } catch (security: SecurityException) {
-            return null
+            // No access to this table on this API level — skip it silently;
+            // the SAF folder scan is the reliable channel.
         } catch (other: Exception) {
-            return if (entries.isEmpty()) null else entries
+            // Never fail the whole scan because one collection misbehaves.
         } finally {
             cursor?.close()
         }
-        return entries
     }
 
     private companion object {
         const val MAX_ROWS = 5000
-        val EXTENSIONS = listOf("pdf", "docx", "xlsx", "txt", "md", "markdown", "text")
+        val EXTENSIONS = listOf("pdf", "docx", "xlsx", "pptx", "txt", "md", "markdown", "text")
     }
 }

@@ -4,13 +4,15 @@
 
     <!--
       The ONLY permission Leaf Lite ever declares. Requested at runtime on
-      API 23-28 only (maxSdkVersion="28"): on API 29+ MediaStore queries need
-      no permission at all. There is deliberately no INTERNET permission and
-      no WRITE/MANAGE_EXTERNAL_STORAGE.
+      API 23-29 (maxSdkVersion="29"): on 23-28 it unlocks MediaStore scans,
+      and on 29 (Android 10) it still covers other apps' download documents.
+      From API 30 on, scoped storage hides other apps' documents entirely and
+      the SAF "Add folder to library" flow is the supported channel. There is
+      deliberately no INTERNET permission and no WRITE/MANAGE_EXTERNAL_STORAGE.
     -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="29" />
 
     <!--
       Not a permission: lets the "Open in another app" fallback resolve viewer
@@ -102,6 +104,27 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ViewerActivityPptx"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.ms-powerpoint" />
             </intent-filter>
         </activity-alias>
 

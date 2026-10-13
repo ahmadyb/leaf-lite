@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Only ever called on API 23-28 (see LibraryFragment). */
     fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) return
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) return
         permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 

@@ -35,6 +35,11 @@ class Prefs(context: Context) {
         get() = sp.getLong(KEY_LAST_SCAN, 0L)
         set(value) = sp.edit { putLong(KEY_LAST_SCAN, value) }
 
+    /** Persisted SAF tree grants ("Add folder to library"). */
+    var treeUris: Set<String>
+        get() = sp.getStringSet(KEY_TREES, emptySet())?.toSet() ?: emptySet()
+        set(value) = sp.edit { putStringSet(KEY_TREES, value.toSet()) }
+
     private companion object {
         const val FILE = "leaflite"
         const val KEY_NIGHT = "night_mode"
@@ -43,5 +48,6 @@ class Prefs(context: Context) {
         const val KEY_MONOSPACE = "monospace"
         const val KEY_SORT = "sort"
         const val KEY_LAST_SCAN = "last_scan_at"
+        const val KEY_TREES = "saf_trees"
     }
 }

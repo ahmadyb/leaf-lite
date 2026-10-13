@@ -24,7 +24,8 @@ import com.leaflite.viewer.util.Formatters
  */
 class DocumentAdapter(
     private val onOpen: (Doc) -> Unit,
-    private val onStar: (Doc) -> Unit
+    private val onStar: (Doc) -> Unit,
+    private val onShare: (Doc) -> Unit
 ) : ListAdapter<Doc, DocumentAdapter.VH>(Diff) {
 
     var compact: Boolean = false
@@ -57,6 +58,10 @@ class DocumentAdapter(
         fun bind(doc: Doc, compact: Boolean) {
             val context = binding.root.context
             val resources = context.resources
+            binding.root.setOnLongClickListener {
+                onShare(doc)
+                true
+            }
 
             val rowHeight = resources.getDimensionPixelSize(
                 if (compact) R.dimen.row_height_compact else R.dimen.row_height

@@ -322,3 +322,61 @@ deliberate: no key material is ever stored in the repository or workflow.
 **Action versions.** Pinned to the current majors at the time of writing
 (checkout v7, setup-java v6, upload-artifact v7, download-artifact v8,
 gradle/actions v6, android-emulator-runner v2).
+
+## 11. v1.1 decisions (PPTX, discovery, share-out, pagination, find, zoom)
+
+**PPTX engine.** Same ZIP + `XmlPullParser` stack as DOCX/XLSX — no new
+dependency, the §10 allow-list is untouched. The parser reads slide geometry
+from `a:off`/`a:ext` (EMU units, scaled by `viewWidth / (sldSz/12700)`),
+text runs with b/i/sz/srgbClr, bullet paragraphs, pictures via slide rels,
+slide order from `ppt/presentation.xml`, and flattens grouped shapes
+(child offsets are reported relative to the group box). Tables degrade to
+plain text rows (the mockup has no slide-table component and no spreadsheet
+widget was reused for slides). This covers presentation text/decks — the
+actual acceptance surface; fancy SmartArt/WordArt is out of scope by design.
+
+**Discovery rework.** Scoped storage made `MediaStore.Files` blind to
+documents on API 29+ (only the app's own files are visible) and forbids
+`MANAGE_EXTERNAL_STORAGE`. The only *official* document access on modern
+Android is SAF with no permission at all. v1.1 therefore layers: (1) user
+grants of folder trees via `ACTION_OPEN_DOCUMENT_TREE` (persistable URIs,
+manual `DocumentsContract` tree walk — deliberately **not** adding
+`androidx.documentfile`), kept across restarts; (2) MediaStore + Downloads
+fallback on versions/storage states where it still sees files. The permission
+card is now a boundary explainer with "Choose folder" rather than a
+READ_EXTERNAL_STORAGE gate (pre-23-safe, Android 13+ correct).
+
+**DOCX pagination.** Documents are measured (page width = screen minus
+gutters, height = width × 1.30) and laid out into page sheets with
+`bg_doc_page` paper. Page breaks split at block boundaries; a `w:br type="page"`
+inside a paragraph breaks *before* that paragraph — off by at most one
+paragraph, accepted because per-line re-flow would cost a full text layout
+engine. Night themes get dark pages (`darkPages = night && !sepia`); night
+tables had invisible text because DOCX run colours are authored for white
+paper (e.g. white text in header cells). `ViewerRenderer.adaptColors` strips
+spans whose luminance would vanish against the page (dark runs on dark pages,
+light runs on light pages) instead of shipping a colour-mapping table.
+
+**PDF zoom quality.** Pinch/double-tap still scales a fixed bitmap; when the
+zoom settles, the page is re-rendered at `base × scale` (clamped to 2048 px,
+one hi-res page alive at a time) and swapped with a compensating pre-scale so
+no jump occurs. Same trick, no library.
+
+**Find-in-document.** Text formats highlight through `TextFinder`
+(`BackgroundColorSpan` wash over every `TextView` in the tree, scroll-to-match).
+XLSX finds at the data level and washes cells via `SheetAdapter.highlightQuery`.
+PDF has no text API in `android.graphics.pdf`, so `PdfTextExtractor` is a
+from-scratch content-stream reader (object table, Flate, Tj/TJ/'/" operators,
+`/ToUnicode` CMaps, Latin-1 fallback). Scanned pages without a text layer
+simply report no matches — search is a best-effort aid, not an index.
+
+**Share-out.** Every document can be handed to other apps via `ACTION_SEND`
+(viewer share button, row long-press). The file is copied into the
+FileProvider-exposed `cache/shared` directory first (existing
+"Open in another app" mechanism), because SAF/MediaStore source URIs cannot
+re-grant read access to arbitrary receivers. Zero new dependencies.
+
+**Text pinch-zoom (DOCX/TXT/MD).** A `ScaleGestureDetector` on the scroll
+container re-renders the document at a new `textScale` (0.7×–2.5×) and keeps
+the scroll anchor. Cheap and consistent across the three text formats; slides
+stay geometry-accurate and PDF has its own zoom.

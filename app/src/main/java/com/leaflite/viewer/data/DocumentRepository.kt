@@ -3,6 +3,7 @@ package com.leaflite.viewer.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,14 +57,16 @@ class DocumentRepository(context: Context) {
     // ----------------------------------------------------------------- writes
 
     /**
-     * Full device scan. Returns a [ScanResult] on the main thread; the list
-     * flows are updated before it returns.
+     * Full device scan: MediaStore best-effort plus every granted SAF folder
+     * (the reliable channel on API 29+). Returns a [ScanResult] on the main
+     * thread; the list flows are updated before it returns.
      */
     suspend fun scan(): ScanResult = withContext(Dispatchers.IO) {
-        val entries = scanner.scan()
-        if (entries == null) {
-            ScanResult(count = 0, granted = false, errorMessage = "permission")
-        } else {
+        var count = 0
+        val granted = scanner.hasStoragePermission()
+
+        if (granted) {
+            val entries = scanner.scan() ?: emptyList()
             val seen = HashSet<String>(entries.size * 2)
             entries.forEach { entry ->
                 val uri = Uri.parse(entry.uri)
@@ -83,9 +86,105 @@ class DocumentRepository(context: Context) {
                     )
                 )
             }
-            db.pruneScannedNotIn(seen)
-            ScanResult(count = entries.size, granted = true)
+            db.pruneSourceNotIn(SOURCE_SCAN, seen)
+            count += seen.size
+        } else {
+            db.pruneSourceNotIn(SOURCE_SCAN, emptySet())
         }
+
+        // Granted SAF trees: folders the user explicitly shared with us.
+        val treeScanner = SafTreeScanner(app)
+        val folderSeen = HashSet<String>(128)
+        prefs.treeUris.forEach { tree ->
+            runCatching {
+                treeScanner.scan(Uri.parse(tree)).forEach { entry ->
+                    val uri = Uri.parse(entry.uri)
+                    val type = FormatDetector.detect(entry.displayName, entry.mime) {
+                        app.contentResolver.openInputStream(uri)
+                    } ?: return@forEach
+                    folderSeen += entry.uri
+                    db.upsert(
+                        Doc(
+                            uri = entry.uri,
+                            displayName = entry.displayName,
+                            mime = entry.mime,
+                            type = type,
+                            size = entry.size,
+                            dateModified = entry.dateModified,
+                            source = SOURCE_FOLDER
+                        )
+                    )
+                }
+            }
+        }
+        db.pruneSourceNotIn(SOURCE_FOLDER, folderSeen)
+        count += folderSeen.size
+
+        ScanResult(count = count, granted = granted || prefs.treeUris.isNotEmpty())
+    }
+
+    /** Number of SAF folders the user has granted. */
+    fun folderCount(): Int = prefs.treeUris.size
+
+    /**
+     * Remembers a granted SAF tree. Returns false when the tree is unreadable
+     * (permission lost or revoked since the grant).
+     */
+    fun addTree(tree: Uri): Boolean {
+        val readable = runCatching {
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+                tree,
+                DocumentsContract.getTreeDocumentId(tree)
+            )
+            app.contentResolver.query(
+                children,
+                arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),
+                null,
+                null,
+                null
+            )?.use { true } == true
+        }.getOrDefault(false)
+        if (!readable) return false
+        prefs.treeUris = prefs.treeUris + tree.toString()
+        return true
+    }
+
+    /** Drops one granted folder and its rows (imported files are untouched). */
+    suspend fun removeTree(tree: Uri) = withContext(Dispatchers.IO) {
+        prefs.treeUris = prefs.treeUris - tree.toString()
+        runCatching {
+            app.contentResolver.releasePersistableUriPermission(
+                tree,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+        val remaining = HashSet<String>()
+        val treeScanner = SafTreeScanner(app)
+        prefs.treeUris.forEach { other ->
+            runCatching {
+                treeScanner.scan(Uri.parse(other)).forEach { entry -> remaining += entry.uri }
+            }
+        }
+        db.pruneSourceNotIn(SOURCE_FOLDER, remaining)
+        _documents.value = db.all()
+        Unit
+    }
+
+    /** Drops every granted folder and their rows (imported files are untouched). */
+    suspend fun clearTrees() = withContext(Dispatchers.IO) {
+        val trees = prefs.treeUris
+        prefs.treeUris = emptySet()
+        trees.forEach { tree ->
+            runCatching {
+                app.contentResolver.releasePersistableUriPermission(
+                    Uri.parse(tree),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
+        db.pruneSourceNotIn(SOURCE_FOLDER, emptySet())
+        _documents.value = db.all()
+        Unit
     }
 
     /** Wraps [scan] with the scanning flag and a follow-up list refresh. */
@@ -223,5 +322,6 @@ class DocumentRepository(context: Context) {
         const val SOURCE_SCAN = "scan"
         const val SOURCE_IMPORT = "import"
         const val SOURCE_INTENT = "intent"
+        const val SOURCE_FOLDER = "folder"
     }
 }

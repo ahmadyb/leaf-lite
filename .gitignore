@@ -20,3 +20,4 @@ app/release/
 app/debug/
 *.apk
 *.aab
+__pycache__/

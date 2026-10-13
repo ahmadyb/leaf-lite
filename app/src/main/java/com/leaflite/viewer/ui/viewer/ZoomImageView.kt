@@ -36,9 +36,17 @@ class ZoomImageView @JvmOverloads constructor(
     private var lastY = 0f
     private var dragging = false
     private var animator: ValueAnimator? = null
+    private var swapping = false
 
     var isZoomed: Boolean = false
         private set
+
+    /**
+     * Invoked with the current scale whenever a zoom gesture settles (finger
+     * up / double-tap animation finished). Owners use it to swap in a sharper
+     * bitmap for the zoom level.
+     */
+    var onZoomSettled: ((Float) -> Unit)? = null
 
     private val maxScale = 5f
     private val doubleTapScale = 2.5f
@@ -81,7 +89,33 @@ class ZoomImageView @JvmOverloads constructor(
     /** A new bitmap always starts at 1x, fitted to the view. */
     override fun setImageDrawable(drawable: android.graphics.drawable.Drawable?) {
         super.setImageDrawable(drawable)
-        reset()
+        if (!swapping) reset()
+    }
+
+    /**
+     * Swaps in a higher-resolution bitmap of the *same page* without losing
+     * the zoom/pan. The drawable coordinate space grows by `k`, so the matrix
+     * is pre-scaled by `1/k` to keep the on-screen view identical.
+     */
+    fun swapBitmap(bitmap: android.graphics.Bitmap) {
+        val oldWidth = drawable?.intrinsicWidth ?: 0
+        swapping = true
+        setImageBitmap(bitmap)
+        swapping = false
+        if (oldWidth > 0 && bitmap.width > 0 && oldWidth != bitmap.width) {
+            val k = bitmap.width.toFloat() / oldWidth.toFloat()
+            val correction = Matrix()
+            correction.setScale(1f / k, 1f / k)
+            matrix.preConcat(correction)
+            // drawableRect is in old drawable units; rebuild for the new one
+            drawableRect.set(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+            constrain()
+            imageMatrix = matrix
+        } else {
+            computeFit()
+            matrix.set(fit)
+            imageMatrix = matrix
+        }
     }
 
     /** Recomputes the fit matrix (drawable centred and scaled to the view). */
@@ -153,6 +187,7 @@ class ZoomImageView @JvmOverloads constructor(
                 if (!dragging && !isZoomed) performClick()
                 parent?.requestDisallowInterceptTouchEvent(false)
                 dragging = false
+                if (isZoomed) onZoomSettled?.invoke(scale)
             }
             MotionEvent.ACTION_CANCEL -> {
                 parent?.requestDisallowInterceptTouchEvent(false)
@@ -190,6 +225,11 @@ class ZoomImageView @JvmOverloads constructor(
             addUpdateListener {
                 applyScale(it.animatedValue as Float, focusX, focusY)
             }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (isZoomed) onZoomSettled?.invoke(scale)
+                }
+            })
         }
         this.animator = animator
         animator.start()

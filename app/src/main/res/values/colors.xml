@@ -38,6 +38,7 @@
     <color name="type_pdf">#E5484D</color>
     <color name="type_docx">#2563EB</color>
     <color name="type_xlsx">#16A34A</color>
+    <color name="type_pptx">#E8703A</color>
     <color name="type_txt">#64748B</color>
     <color name="type_md">#8B5CF6</color>
 

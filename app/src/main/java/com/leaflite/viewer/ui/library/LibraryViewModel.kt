@@ -11,12 +11,15 @@ import com.leaflite.viewer.data.ScanResult
 import com.leaflite.viewer.data.SortOption
 import com.leaflite.viewer.data.sortedFor
 import com.leaflite.viewer.data.TypeFilter
+import com.leaflite.viewer.util.ShareOut
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Library tab state: documents + search query + type filter + sort order.
@@ -68,6 +71,21 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rescan(onDone: (ScanResult) -> Unit) {
         repository.scanAsync(onDone)
+    }
+
+    fun addTree(uri: Uri): Boolean = repository.addTree(uri)
+
+    /** Exports a document to the FileProvider cache for ACTION_SEND. */
+    suspend fun shareExport(doc: Doc): ShareOut.Export = withContext(Dispatchers.IO) {
+        ShareOut.export(getApplication(), doc.uri, doc.displayName, doc.type.primaryMime)
+    }
+
+    fun clearFolders(onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val had = repository.folderCount() > 0
+            repository.clearTrees()
+            onDone(had)
+        }
     }
 
     fun refresh() {

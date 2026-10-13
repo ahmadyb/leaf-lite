@@ -3,7 +3,6 @@ package com.leaflite.viewer.ui.viewer
 import android.app.Application
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.leaflite.viewer.LeafLiteApp
@@ -15,16 +14,17 @@ import com.leaflite.viewer.parsers.DocxParser
 import com.leaflite.viewer.parsers.FormatDetector
 import com.leaflite.viewer.parsers.MarkdownParser
 import com.leaflite.viewer.parsers.PdfEngine
+import com.leaflite.viewer.parsers.PdfTextExtractor
+import com.leaflite.viewer.parsers.PptxParser
 import com.leaflite.viewer.parsers.TextLoader
 import com.leaflite.viewer.parsers.XlsxParser
 import com.leaflite.viewer.util.FileSize
+import com.leaflite.viewer.util.ShareOut
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Viewer state: loads a document from any content:// or file:// URI, keeps the
@@ -43,6 +43,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         data class Word(val blocks: List<DocxParser.Block>) : Content()
         data class Sheets(val names: List<String>) : Content()
         data class Pdf(val pageCount: Int) : Content()
+        data class Slides(val slides: List<PptxParser.Slide>) : Content()
     }
 
     enum class Reason { UNSUPPORTED, NOT_FOUND, TOO_LARGE, CORRUPT }
@@ -144,6 +145,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                     val docx = DocxParser { openStream(target) }.parse()
                     docx?.let { Content.Word(it.blocks) }
                 }
+                DocType.PPTX -> {
+                    val slides = PptxParser { openStream(target) }.parse()
+                    if (slides.isEmpty()) null else Content.Slides(slides)
+                }
                 DocType.XLSX -> {
                     val parser = XlsxParser { openStream(target) }
                     val names = parser.readStructure()
@@ -167,6 +172,22 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     /** Parses a sheet on demand (switching sheets happens on the UI thread). */
     suspend fun sheet(index: Int): XlsxParser.Sheet? = withContext(Dispatchers.IO) {
         sheets[index] ?: workbook?.readSheet(index)?.also { sheets[index] = it }
+    }
+
+    /** Per-page extracted text for find-in-document (PDFs only, lazy). */
+    private var pdfText: List<String>? = null
+
+    suspend fun pdfPageText(): List<String> = withContext(Dispatchers.IO) {
+        pdfText ?: run {
+            val target = uri
+            val text = if (target == null) {
+                emptyList()
+            } else {
+                runCatching { PdfTextExtractor.extract { openStream(target) } }.getOrDefault(emptyList())
+            }
+            pdfText = text
+            text
+        }
     }
 
     fun sheetNames(): List<String> = (state.value as? State.Ready)
@@ -201,18 +222,9 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         val doc = document
         if (target == null) return@withContext Export(null, null)
         val name = doc?.displayName ?: _title.value.ifEmpty { "document" }
-        val safeName = sanitize(name).ifEmpty { "document" }
-        val file = File(repository.sharedDir(), safeName)
-        return@withContext try {
-            val input = app.contentResolver.openInputStream(target)
-                ?: return@withContext Export(null, null)
-            input.use { source -> FileOutputStream(file).use { output -> source.copyTo(output) } }
-            val mime = doc?.type?.primaryMime ?: "application/octet-stream"
-            val shareUri = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
-            Export(shareUri, mime)
-        } catch (t: Throwable) {
-            Export(null, null)
-        }
+        val mime = doc?.type?.primaryMime
+        val shared = ShareOut.export(app, target, name, mime)
+        Export(shared.uri, shared.mime)
     }
 
     override fun onCleared() {
@@ -222,20 +234,6 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun openStream(target: Uri) = app.contentResolver.openInputStream(target)
-
-    /** Keeps the export name filesystem-safe without pulling in a URI helper. */
-    private fun sanitize(name: String): String {
-        val builder = StringBuilder(name.length)
-        for (char in name) {
-            builder.append(
-                when {
-                    char.isLetterOrDigit() || char == '.' || char == '_' || char == '-' -> char
-                    else -> '_'
-                }
-            )
-        }
-        return builder.toString()
-    }
 
     private fun querySize(target: Uri): Long {
         val cursor = try {

@@ -48,6 +48,9 @@ class DocxParser(private val open: () -> InputStream?) {
         data class Table(val rows: List<List<CharSequence>>, val headerRow: Boolean) : Block()
         data class Image(val bitmap: Bitmap) : Block()
         data class ImageRef(val path: String) : Block()
+
+        /** Explicit `w:br w:type="page"` — forces a page cut when paginating. */
+        object PageBreak : Block()
     }
 
     data class Document(val blocks: List<Block>)
@@ -257,7 +260,14 @@ class DocxParser(private val open: () -> InputStream?) {
                 "sz", "szCs" -> sizeSp = (parser.attr("val")?.toIntOrNull() ?: 0) / 2
                 "color" -> color = parseColor(parser.attr("val"))
                 "t" -> inText = true
-                "br" -> run?.append('\n')
+                "br" -> {
+                    val type = parser.attr("type")
+                    if (type == "page" && tableDepth == 0 && out.size < MAX_BLOCKS) {
+                        out.add(Block.PageBreak)
+                    } else {
+                        run?.append('\n')
+                    }
+                }
                 "tab" -> run?.append('\t')
                 "hyperlink" -> hyperlink = parser.attr("id")?.let { links[it] }
                 "tbl" -> {

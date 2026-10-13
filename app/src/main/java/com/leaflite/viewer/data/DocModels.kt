@@ -15,6 +15,7 @@ enum class DocType(
     PDF("pdf", R.string.type_pdf, R.drawable.ic_type_pdf, R.color.type_pdf),
     DOCX("docx", R.string.type_docx, R.drawable.ic_type_doc, R.color.type_docx),
     XLSX("xlsx", R.string.type_xlsx, R.drawable.ic_type_sheet, R.color.type_xlsx),
+    PPTX("pptx", R.string.type_pptx, R.drawable.ic_type_pptx, R.color.type_pptx),
     TXT("txt", R.string.type_txt, R.drawable.ic_type_text, R.color.type_txt),
     MD("md", R.string.type_md, R.drawable.ic_type_markdown, R.color.type_md);
 
@@ -27,6 +28,9 @@ enum class DocType(
             )
             XLSX -> listOf(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            PPTX -> listOf(
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
             )
             TXT -> listOf("text/plain")
             MD -> listOf("text/markdown", "text/x-markdown")
@@ -52,6 +56,7 @@ enum class TypeFilter(
     PDF(R.string.chip_pdf, R.string.section_pdf, DocType.PDF),
     DOCX(R.string.chip_word, R.string.section_word, DocType.DOCX),
     XLSX(R.string.chip_excel, R.string.section_excel, DocType.XLSX),
+    PPTX(R.string.chip_slides, R.string.section_slides, DocType.PPTX),
     TXT(R.string.chip_text, R.string.section_text, DocType.TXT),
     MD(R.string.chip_markdown, R.string.section_markdown, DocType.MD);
 
