@@ -420,10 +420,15 @@ object PdfTextExtractor {
     private fun hasType(body: ByteArray, type: String): Boolean =
         hasType(String(body, Charsets.ISO_8859_1), type)
 
-    private fun hasType(body: String, type: String): Boolean =
-        body.contains("/Type") && body.substringAfter("/Type", "").trimStart().let {
-            it.startsWith("/$type") || it.startsWith(" /$type")
-        }
+    private fun hasType(body: String, type: String): Boolean {
+        val tail = body.substringAfter("/Type", "")
+        if (tail.isEmpty()) return false
+        val token = tail.trimStart()
+        if (!token.startsWith("/$type")) return false
+        // "/Page" must not match "/Pages": the type name ends at a non-name char.
+        val after = token.getOrNull(type.length + 1) ?: return true
+        return !after.isLetterOrDigit()
+    }
 
     private fun refValue(body: ByteArray, key: String): String? {
         val text = String(body, Charsets.ISO_8859_1)
