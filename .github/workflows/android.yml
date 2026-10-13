@@ -168,6 +168,18 @@ jobs:
           disable-animations: true
           script: ./gradlew connectedDebugAndroidTest --stacktrace
 
+      - name: Surface test failures
+        if: failure()
+        run: |
+          # The Checks API exposes annotations; push the failing test names
+          # and messages there so they are readable without the log download.
+          esc() { sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' "$1" | tr -d '\n'; }
+          grep -rhoE '<testcase[^>]*name="[^"]+"|<failure[^>]*message="[^"]*"' \
+            app/build/outputs/androidTest-results/ 2>/dev/null | head -40 > failures.txt || true
+          grep -rhoE 'AssertionError[^"]*|SecurityException[^"]*|IllegalStateException[^"]*' \
+            app/build/outputs/androidTest-results/ 2>/dev/null | head -20 >> failures.txt || true
+          if [ -s failures.txt ]; then echo "::error::$(esc failures.txt)"; fi
+
       - name: Upload instrumented test reports
         if: failure()
         uses: actions/upload-artifact@v7

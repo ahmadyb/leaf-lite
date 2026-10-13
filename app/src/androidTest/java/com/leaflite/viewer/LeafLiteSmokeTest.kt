@@ -74,15 +74,28 @@ class LeafLiteSmokeTest {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "leaf-lite-smoke-test.txt")
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
         assertNotNull("MediaStore insert must succeed", uri)
         try {
             resolver.openOutputStream(uri!!)?.use { it.write("hello".toByteArray()) }
-            val entries = com.leaflite.viewer.data.MediaStoreScanner(context).scan()
+            // Finalising IS_PENDING makes MediaProvider commit size/metadata.
+            resolver.update(uri, ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }, null, null)
+            val scanner = com.leaflite.viewer.data.MediaStoreScanner(context)
+            var found = false
+            repeat(10) {
+                if (scanner.scan().any { it.displayName.startsWith("leaf-lite-smoke-test") }) {
+                    found = true
+                    return@repeat
+                }
+                Thread.sleep(300)
+            }
             assertTrue(
-                "own document must be discoverable through the scan pipeline: $entries",
-                entries.any { it.displayName.startsWith("leaf-lite-smoke-test") }
+                "own document must be discoverable through the scan pipeline",
+                found
             )
         } finally {
             runCatching { resolver.delete(uri!!, null, null) }
