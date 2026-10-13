@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 
@@ -15,12 +16,12 @@ import androidx.core.content.ContextCompat
  * Query strategy per API level:
  *
  * * API 23-28: `MediaStore.Files` with `READ_EXTERNAL_STORAGE` (runtime prompt).
- * * API 29:    `READ_EXTERNAL_STORAGE` still grants access to other apps'
+ * * API 29-32: `READ_EXTERNAL_STORAGE` still grants access to other apps'
  *              files (incl. downloads), so ask for it and query both tables.
- * * API 30+:   scoped storage hides other apps' documents from MediaStore
- *              entirely, so this is best-effort (own files + any ROM that
- *              still exposes downloads). The reliable path on 30+ is the SAF
- *              folder grant — see [SafTreeScanner].
+ * * API 33+:   `READ_EXTERNAL_STORAGE` no longer exists for documents;
+ *              All files access (`MANAGE_EXTERNAL_STORAGE`) unlocks the full
+ *              MediaStore scan. Without either grant the scan is best-effort
+ *              (own files only) and "Add folder to library" is the fallback.
  *
  * MIME type is frequently null in MediaStore, so every query matches on file
  * name extensions as well. `LIMIT` in the sort order is not accepted by every

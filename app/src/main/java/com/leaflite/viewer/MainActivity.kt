@@ -1,9 +1,13 @@
 package com.leaflite.viewer
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -138,9 +142,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Requested on API 23-32; Android 13+ has no document storage permission. */
+    /** Handles every band: runtime permission on 23-32, All files on 33+. */
     fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val intent = try {
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            } catch (notFound: ActivityNotFoundException) {
+                Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+            }
+            runCatching { startActivity(intent) }
+            return
+        }
         permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 

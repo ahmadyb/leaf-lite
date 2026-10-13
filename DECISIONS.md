@@ -384,15 +384,24 @@ stay geometry-accurate and PDF has its own zoom.
 ## 12. v1.1.1 fixes (auto discovery, zoom regressions, find, CI coverage)
 
 **Why `maxSdkVersion="32"` and not 36.** `READ_EXTERNAL_STORAGE` is the only
-document permission Android ever gave normal apps, and Android 13 (API 33)
-*killed it for documents*: the OS no longer shows a dialog, grants nothing,
-and `READ_MEDIA_*` only covers images/video/audio. Declaring it through 36
-would be a dead entry (and Play flags unused permissions). 32 is the last API
-where requesting it actually unlocks other apps' documents (MediaStore.Files
-on 23-28, plus the Downloads collection on 29-32). On 33+ the scan is
-best-effort and "Add folder" exists as a supplement; the only mechanism that
-makes 33+ fully automatic is `MANAGE_EXTERNAL_STORAGE`, which the build
-prompt forbids.
+document permission Android ever gave normal apps through Android 12, and
+Android 13 (API 33) *killed it for documents*: the OS no longer shows a
+dialog, grants nothing, and `READ_MEDIA_*` only covers images/video/audio.
+Declaring it through 36 would be a dead entry (and Play flags unused
+permissions). 32 is the last API where requesting it actually unlocks other
+apps' documents (MediaStore.Files on 23-28, plus the Downloads collection on
+29-32).
+
+**All files access on Android 13+ (user decision, spec amended).** The build
+prompt originally forbade `MANAGE_EXTERNAL_STORAGE`; with that rule the
+library could never fill itself automatically on Android 13+ (the OS offers
+no other channel for documents). The user explicitly chose automatic
+discovery over the restriction (2026-10-13), so v1.1.2 declares
+`MANAGE_EXTERNAL_STORAGE` and requests it on 33+ only. The flow per band:
+23-32 one runtime `READ_EXTERNAL_STORAGE` prompt; 33+ an explanation dialog
+then the system's All files access screen. With either grant the MediaStore
+scan sees every document and the library fills itself — folder picking is
+never required. Nothing network-facing changed: still zero INTERNET.
 
 **Automatic library.** The permission prompt now happens once on first launch
 (not behind a card the user must discover), and the empty state leads with

@@ -47,6 +47,8 @@
     <string name="perm_denied">No storage access — you can still open files manually</string>
     <string name="perm_grant">Grant access</string>
     <string name="perm_import">Import file</string>
+    <string name="perm_all_files_title">Allow access to your documents</string>
+    <string name="perm_all_files_body">Android keeps documents behind special access. Leaf Lite uses All files access only to list the documents already on your device — nothing is uploaded, the app has no internet access at all.</string>
     <string name="perm_rationale_title">Storage access</string>
     <string name="perm_rationale_body">Leaf Lite scans your device for PDF, Word, Excel, text and Markdown files. Without storage access you can still open files with Import file.</string>
 

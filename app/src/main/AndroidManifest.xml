@@ -3,18 +3,20 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-      The ONLY permission Leaf Lite ever declares. Requested at runtime on
-      API 23-32 (maxSdkVersion="32"): it unlocks automatic MediaStore document
-      discovery through Android 12, including other apps' files in the
-      Downloads collection on 29+. Android 13+ removed this permission for
-      documents entirely (no dialog, nothing to grant), so it is deliberately
-      not requested there; the scan is best-effort on 33+ and "Add folder"
-      remains available as a supplement. No INTERNET permission and no
-      WRITE/MANAGE_EXTERNAL_STORAGE.
+      Storage permissions. Requested at runtime on API 23-32
+      (READ_EXTERNAL_STORAGE, maxSdkVersion="32"): it unlocks automatic
+      MediaStore document discovery through Android 12, including other
+      apps' files in the Downloads collection on 29+. Android 13 removed that
+      permission for documents, so from 33 on Leaf Lite asks for All files
+      access (MANAGE_EXTERNAL_STORAGE) instead: the only mechanism left that
+      can list documents automatically. With either grant the library fills
+      itself; no folders need choosing. No INTERNET permission and no
+      WRITE_EXTERNAL_STORAGE.
     -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <!--
       Not a permission: lets the "Open in another app" fallback resolve viewer

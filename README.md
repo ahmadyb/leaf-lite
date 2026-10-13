@@ -21,10 +21,10 @@ PdfBox, no MuPDF, no Gson, no DI framework, no native libraries.
 ## Features
 
 **Library** — automatic discovery: MediaStore scan populated on first launch
-(storage permission is asked once and silently on Android 6–12; Android 13+
-needs no permission and scans best-effort), six filter chips, live search by
-file name, sort sheet (name/date/size, both directions, persisted), rows
-showing `{Type} · {Size} · {Relative date}`, star toggle straight from the row,
+(storage permission asked once — `READ_EXTERNAL_STORAGE` on Android 6–12,
+All files access on Android 13+), six filter chips, live search by file name,
+sort sheet (name/date/size, both directions, persisted), rows showing
+`{Type} · {Size} · {Relative date}`, star toggle straight from the row,
 long-press to share, overflow menu with *Add folder · Manage folders ·
 Rescan device · Import file · Clear cache* ("Add folder" supplements the scan
 for locations Android keeps hidden).

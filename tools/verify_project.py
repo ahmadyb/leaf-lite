@@ -357,7 +357,9 @@ def check_manifest() -> None:
             error(f"manifest: missing @{kind}/{name}")
     if "android.permission.INTERNET" in text:
         error("manifest: INTERNET permission must not be declared")
-    for forbidden in ("WRITE_EXTERNAL_STORAGE", "MANAGE_EXTERNAL_STORAGE", "ACCESS_NETWORK_STATE"):
+    # MANAGE_EXTERNAL_STORAGE is allowed since v1.1.2: the user chose automatic
+    # document discovery on Android 13+ over the original ban (see DECISIONS 12).
+    for forbidden in ("WRITE_EXTERNAL_STORAGE", "ACCESS_NETWORK_STATE"):
         if forbidden in text:
             error(f"manifest: forbidden permission {forbidden}")
 

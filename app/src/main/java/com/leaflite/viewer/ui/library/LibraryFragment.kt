@@ -91,21 +91,40 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
 
     /**
      * The library must populate by itself: on API 23-32 that means asking for
-     * the storage permission once, automatically, instead of making the user
-     * discover a card or pick folders. Android 13+ has no such permission.
+     * the storage permission once; on 33+ it means pointing at the All files
+     * access screen (the only automatic channel Android 13+ leaves). Either
+     * way it happens automatically on first launch, with an explanation.
      */
     private fun maybeAskStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
         if (viewModel.permissionPrompted || viewModel.permissionDenied) return
         if (viewModel.hasStoragePermission()) return
         viewModel.markPermissionPrompted()
-        requestStoragePermission()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.perm_all_files_title)
+                .setMessage(R.string.perm_all_files_body)
+                .setPositiveButton(R.string.perm_grant) { _, _ ->
+                    (activity as? MainActivity)?.requestStoragePermission()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            requestStoragePermission()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        val granted = viewModel.hasStoragePermission()
+        if (granted && !hadStoragePermission) {
+            // Returning from the All files access screen (or a grant) — refill.
+            viewModel.rescan { }
+        }
+        hadStoragePermission = granted
         updatePermissionCard()
     }
+
+    private var hadStoragePermission = false
 
     override fun onDestroyView() {
         binding.recycler.adapter = null
@@ -179,9 +198,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
                         binding.listCard.isVisible = !empty
                         if (empty) {
                             binding.empty.emptyAction.isVisible = true
-                            val needsGrant = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU &&
-                                !viewModel.hasStoragePermission()
-                            if (needsGrant) {
+                            if (!viewModel.hasStoragePermission()) {
                                 binding.empty.emptyAction.setText(R.string.perm_grant)
                                 binding.empty.emptyAction.setOnClickListener {
                                     requestStoragePermission()
@@ -310,9 +327,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     // ------------------------------------------------------------- permission
 
     private fun updatePermissionCard() {
-        // Android 13+ has no document storage permission to ask for.
-        val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU &&
-            !viewModel.hasStoragePermission()
+        val needsPermission = !viewModel.hasStoragePermission()
         binding.permission.root.isVisible = needsPermission
         if (!needsPermission) return
 
@@ -333,7 +348,6 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     }
 
     private fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
         if (shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.perm_rationale_title)
