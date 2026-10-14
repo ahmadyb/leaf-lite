@@ -27,6 +27,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_MONOSPACE, false)
         set(value) = sp.edit { putBoolean(KEY_MONOSPACE, value) }
 
+    var readingMode: Boolean
+        get() = sp.getBoolean(KEY_READING, false)
+        set(value) = sp.edit { putBoolean(KEY_READING, value) }
+
     var sortOption: SortOption
         get() = SortOption.fromKey(sp.getString(KEY_SORT, null) ?: SortOption.NAME_ASC.key)
         set(value) = sp.edit { putString(KEY_SORT, value.key) }
@@ -46,6 +50,7 @@ class Prefs(context: Context) {
         const val KEY_KEEP_SCREEN = "keep_screen_on"
         const val KEY_COMPACT = "compact_list"
         const val KEY_MONOSPACE = "monospace"
+        const val KEY_READING = "reading_mode"
         const val KEY_SORT = "sort"
         const val KEY_LAST_SCAN = "last_scan_at"
         const val KEY_TREES = "saf_trees"

@@ -443,3 +443,24 @@ look (dark header cells with adapted light runs).
 
 **CI.** The instrumented smoke job is a matrix: API 23 (minSdk floor) and
 API 35 (modern scoped storage) so behavior is exercised at both ends.
+
+**v1.1.4: PPTX opened wrong, gaps slimmed, reading mode.** User testing on a
+real device: "slides or pptx file are not opening". Root cause: the slide-part
+filter matched any entry starting `ppt/slides/slide`, so every real package's
+`ppt/slides/slideLayouts/…` and `ppt/slides/slideMasters/…` were parsed as
+slides — decks opened as blank/layout pages and hit the 256-slide cut before
+the real slides. The filter now matches exactly `ppt/slides/slideN.xml`
+(regex), with an instrumented `PptxParserTest` that assembles a deck (layouts,
+masters and out-of-order slides) in memory and asserts only real slides parse.
+Alongside: bullets now come from `buChar`/`buAutoNum` instead of defaulting on,
+table-cell text accumulates into its cell (it was being dropped), and the
+paragraph indent level is read from `a:pPr@lvl` (attribute, not element).
+
+**v1.1.4: page gaps and reading mode.** The 12dp gap between DOCX pages and
+between slides became 5dp ("make it slimmer"). Settings → Supported formats
+now lists PPTX. Reading mode (footer book icon, persisted in `Prefs`): hides
+the header — file name, search, favorite, share — for distraction-free
+reading; the footer with the page/slide indicator and the toggle itself stays
+visible (Markdown keeps the footer bar for this reason), find closes if open,
+and the mode never applies while loading or on errors so Back stays reachable.
+System Back still exits the viewer.

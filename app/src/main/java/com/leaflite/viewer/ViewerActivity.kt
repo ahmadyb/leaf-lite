@@ -159,6 +159,10 @@ class ViewerActivity : AppCompatActivity() {
             ).show()
         }
         binding.shareButton.setOnClickListener { shareDocument() }
+        binding.readingButton.setOnClickListener {
+            prefs.readingMode = !prefs.readingMode
+            applyReadingChrome(viewModel.state.value)
+        }
         binding.monospaceButton.setOnClickListener {
             viewModel.toggleMonospace()
             reRenderText()
@@ -457,6 +461,22 @@ class ViewerActivity : AppCompatActivity() {
             is ViewerViewModel.State.Ready -> showContent(state.content)
             is ViewerViewModel.State.Error -> showError(state.reason)
         }
+        applyReadingChrome(state)
+    }
+
+    /**
+     * Reading mode hides the header (file name, search, star, share) for
+     * distraction-free reading; the footer with its toggle stays reachable and
+     * system Back still exits. Never applies while loading or on errors so the
+     * back button remains available.
+     */
+    private fun applyReadingChrome(state: ViewerViewModel.State) {
+        val reading = prefs.readingMode && state is ViewerViewModel.State.Ready
+        binding.topBar.isVisible = !reading
+        binding.readingButton.alpha = if (reading) 1f else 0.6f
+        if (reading && binding.findBar.isVisible) {
+            closeFind()
+        }
     }
 
     private fun hideAllBodies() {
@@ -493,6 +513,11 @@ class ViewerActivity : AppCompatActivity() {
                     binding.footerBar.isVisible = true
                     binding.footer.text = ""
                     binding.monospaceButton.isVisible = true
+                } else {
+                    // Markdown keeps the footer so the reading-mode toggle stays
+                    // reachable even with the header hidden.
+                    binding.footerBar.isVisible = true
+                    binding.footer.text = ""
                 }
                 restoreScroll()
             }
@@ -536,7 +561,7 @@ class ViewerActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = dp(12f) }
+                ).apply { bottomMargin = dp(5f) }
             )
         }
         pageTotal = slides.size.coerceAtLeast(1)

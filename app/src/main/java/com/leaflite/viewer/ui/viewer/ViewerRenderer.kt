@@ -284,7 +284,7 @@ object ViewerRenderer {
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = dp(context, 12f) }
+                ).apply { bottomMargin = dp(context, 5f) }
             )
         }
         onPageCount(pages.size)

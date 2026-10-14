@@ -17,6 +17,7 @@
         android:layout_height="0dp" />
 
     <LinearLayout
+        android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
@@ -336,6 +337,17 @@
             android:text="@string/pdf_footer"
             android:textAppearance="@style/TextAppearance.Leaf.FileSub"
             android:textSize="11.5sp" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/readingButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:background="@drawable/ripple_borderless"
+            android:contentDescription="@string/cd_reading_mode"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_reading"
+            app:tint="@color/icon_idle" />
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/monospaceButton"

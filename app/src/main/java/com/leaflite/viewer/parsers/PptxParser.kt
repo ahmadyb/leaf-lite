@@ -62,8 +62,11 @@ class PptxParser(private val open: () -> InputStream?) {
     )
 
     fun parse(): List<Slide> {
+        // Exactly ppt/slides/slideN.xml — real packages also contain
+        // ppt/slides/slideLayouts/… and ppt/slides/slideMasters/… which must
+        // never be treated as slides.
         val slideNames = Zipx.entryNames(open, limit = 4096)
-            .filter { it.startsWith("ppt/slides/slide") && it.endsWith(".xml") }
+            .filter { SLIDE_PART.matches(it) }
             .sortedBy { name ->
                 name.substringAfterLast("slide").substringBefore(".xml").toIntOrNull() ?: 0
             }
@@ -216,9 +219,11 @@ class PptxParser(private val open: () -> InputStream?) {
                 }
                 "pPr" -> {
                     align = parser.attr("algn")
-                    bullet = true // text frames in slides are bullet lists by default
+                    // a:pPr carries the indent level as an attribute.
+                    parser.attr("lvl")?.toIntOrNull()?.let { level = it.coerceIn(0, 4) }
                 }
                 "lvl" -> level = (parser.attr("val")?.toIntOrNull() ?: 0).coerceIn(0, 4)
+                "buChar", "buAutoNum" -> bullet = true
                 "buNone" -> bullet = false
                 "r" -> {
                     run = StringBuilder()
@@ -262,7 +267,11 @@ class PptxParser(private val open: () -> InputStream?) {
                 }
                 "p" -> {
                     if (tableDepth > 0) {
-                        tableRow?.add(tableCell.toString())
+                        if (runs.isNotEmpty()) {
+                            if (tableCell.isNotEmpty()) tableCell.append(' ')
+                            runs.forEach { tableCell.append(it.text) }
+                            runs = ArrayList()
+                        }
                     } else if (runs.isNotEmpty() || paragraphs.isEmpty()) {
                         paragraphs += Para(runs, level, bullet, align)
                         runs = ArrayList()
@@ -360,6 +369,7 @@ class PptxParser(private val open: () -> InputStream?) {
     }
 
     private companion object {
+        val SLIDE_PART = Regex("ppt/slides/slide\\d+\\.xml")
         const val MAX_SLIDES = 256
         const val MAX_SHAPES_PER_SLIDE = 256
         const val MAX_IMAGE_BYTES = 8 * 1024 * 1024

@@ -94,7 +94,7 @@
     <string name="dialog_version_title">Version</string>
     <string name="dialog_version_body">Leaf Lite %1$s (build %2$d)\n\nA tiny viewer that opens almost any document without the weight. Everything runs on your device — no network, no accounts, no tracking.</string>
     <string name="dialog_formats_title">Supported formats</string>
-    <string name="dialog_formats_body">PDF — rendered with the built-in Android PDF renderer.\n\nDOCX — headings, bold/italic/underline, lists, tables, links and inline images.\n\nXLSX — multiple sheets, text, numbers and dates.\n\nTXT — UTF-8/UTF-16 text with automatic encoding detection.\n\nMD — headings, emphasis, lists, quotes, code blocks and links.</string>
+    <string name="dialog_formats_body">PDF — rendered with the built-in Android PDF renderer.\n\nDOCX — headings, bold/italic/underline, lists, tables, links and inline images.\n\nXLSX — multiple sheets, text, numbers and dates.\n\nPPTX — slides with text, bullets and pictures, including tables flattened to text.\n\nTXT — UTF-8/UTF-16 text with automatic encoding detection.\n\nMD — headings, emphasis, lists, quotes, code blocks and links.</string>
     <string name="dialog_close">Close</string>
 
     <!-- viewer -->
@@ -133,6 +133,7 @@
     <string name="viewer_sub">%1$s · %2$s</string>
     <string name="viewer_loading">Opening document…</string>
     <string name="viewer_monospace">Monospace</string>
+    <string name="cd_reading_mode">Toggle reading mode</string>
     <string name="tag_markdown">Markdown</string>
     <string name="tag_text">Plain Text</string>
     <string name="docx_image">Image</string>
