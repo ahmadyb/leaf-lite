@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_rescan"
+        android:title="@string/menu_rescan" />
+    <item
+        android:id="@+id/menu_add_folder"
+        android:title="@string/menu_add_folder" />
+    <item
+        android:id="@+id/menu_manage_folders"
+        android:title="@string/menu_manage_folders" />
+    <item
+        android:id="@+id/menu_import"
+        android:title="@string/menu_import" />
+    <item
+        android:id="@+id/menu_clear_cache"
+        android:title="@string/menu_clear_cache" />
+</menu>

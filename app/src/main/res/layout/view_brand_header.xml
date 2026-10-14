@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared brand header: gradient leaf tile + "Leaf Lite" wordmark + two 38dp
+  icon buttons. Fragments hide the buttons they do not use.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/pad_header"
+    android:paddingEnd="@dimen/pad_header"
+    android:paddingTop="6dp"
+    android:paddingBottom="14dp">
+
+    <FrameLayout
+        android:layout_width="@dimen/logo_size"
+        android:layout_height="@dimen/logo_size"
+        android:background="@drawable/bg_logo"
+        android:contentDescription="@string/cd_logo">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            app:srcCompat="@drawable/ic_leaf"
+            app:tint="@android:color/white" />
+    </FrameLayout>
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="9dp"
+        android:text="@string/brand_leaf"
+        android:textAppearance="@style/TextAppearance.Leaf.Brand" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:text="@string/brand_lite"
+        android:textAppearance="@style/TextAppearance.Leaf.BrandMuted" />
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+    <FrameLayout
+        android:id="@+id/searchButton"
+        android:layout_width="@dimen/icon_btn_size"
+        android:layout_height="@dimen/icon_btn_size"
+        android:background="@drawable/ripple_icon_button"
+        android:contentDescription="@string/cd_search">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            app:srcCompat="@drawable/ic_search"
+            app:tint="@color/icon_idle" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/moreButton"
+        android:layout_width="@dimen/icon_btn_size"
+        android:layout_height="@dimen/icon_btn_size"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/ripple_icon_button"
+        android:contentDescription="@string/cd_more">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            app:srcCompat="@drawable/ic_more"
+            app:tint="@color/icon_idle" />
+    </FrameLayout>
+</LinearLayout>

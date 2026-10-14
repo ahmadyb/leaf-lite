@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 315deg: top-left (#26B672) -> bottom-right (#12864F), the closest Android
+     gradient angle to the mockup's 145deg logo gradient. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:endColor="@color/logo_end"
+        android:startColor="@color/logo_start"
+        android:type="linear" />
+    <corners android:radius="@dimen/radius_logo" />
+</shape>

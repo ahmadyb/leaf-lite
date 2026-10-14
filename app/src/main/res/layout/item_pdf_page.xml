@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One rendered PDF page: 16dp radius white card, 14dp gutter. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pageCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/doc_page_margin"
+    android:layout_marginEnd="@dimen/doc_page_margin"
+    android:layout_marginTop="@dimen/doc_page_gap"
+    android:background="@drawable/bg_doc_page"
+    android:elevation="1dp">
+
+    <com.leaflite.viewer.ui.viewer.ZoomImageView
+        android:id="@+id/pageImage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:background="@color/card"
+        android:contentDescription="@string/content_desc_document_page"
+        android:scaleType="fitCenter" />
+</FrameLayout>

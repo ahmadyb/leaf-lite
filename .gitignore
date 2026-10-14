@@ -1,0 +1,23 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Signing secrets — never commit the real file.
+keystore.properties
+*.jks
+*.keystore
+
+# Build outputs
+app/build/
+app/release/
+app/debug/
+*.apk
+*.aab
+__pycache__/

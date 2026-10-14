@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Storage permissions. Requested at runtime on API 23-32
+      (READ_EXTERNAL_STORAGE, maxSdkVersion="32"): it unlocks automatic
+      MediaStore document discovery through Android 12, including other
+      apps' files in the Downloads collection on 29+. Android 13 removed that
+      permission for documents, so from 33 on Leaf Lite asks for All files
+      access (MANAGE_EXTERNAL_STORAGE) instead: the only mechanism left that
+      can list documents automatically. With either grant the library fills
+      itself; no folders need choosing. No INTERNET permission and no
+      WRITE_EXTERNAL_STORAGE.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!--
+      Not a permission: lets the "Open in another app" fallback resolve viewer
+      activities under Android 11+ package-visibility rules.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".LeafLiteApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="false"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.LeafLite"
+        tools:targetApi="31">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="unspecified"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          ViewerActivity is exported so other apps can hand it a document with
+          ACTION_VIEW ("Open with -> Leaf Lite"). configChanges is intentionally
+          left at the default: the activity is recreated on rotation and restores
+          page/scroll/sheet from instance state (see ViewerActivity).
+        -->
+        <activity
+            android:name=".ViewerActivity"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:launchMode="standard"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity-alias
+            android:name=".ViewerActivityPdf"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ViewerActivityDocx"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ViewerActivityXlsx"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ViewerActivityPptx"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.ms-powerpoint" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ViewerActivityTxt"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ViewerActivityMarkdown"
+            android:exported="true"
+            android:label="@string/viewer_label"
+            android:targetActivity=".ViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/markdown" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/x-markdown" />
+            </intent-filter>
+        </activity-alias>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>
