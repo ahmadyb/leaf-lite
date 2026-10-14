@@ -34,6 +34,7 @@
 
     <!-- reading layout -->
     <dimen name="doc_page_margin">14dp</dimen>
+    <dimen name="doc_page_gap">2dp</dimen>
     <dimen name="cell_width">112dp</dimen>
     <dimen name="cell_height">40dp</dimen>
     <dimen name="cell_height_compact">34dp</dimen>

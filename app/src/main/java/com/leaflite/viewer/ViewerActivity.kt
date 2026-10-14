@@ -561,7 +561,7 @@ class ViewerActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = dp(5f) }
+                ).apply { bottomMargin = dp(ViewerRenderer.PAGE_GAP_DP) }
             )
         }
         pageTotal = slides.size.coerceAtLeast(1)

@@ -43,6 +43,7 @@ object ViewerRenderer {
     /** Side chrome of a DOCX page sheet (must match [showScroll] in the activity). */
     const val PAGE_GUTTER_DP = 14f
     const val PAGE_PAD_DP = 22f
+    const val PAGE_GAP_DP = 2f
 
     /** Content width of a page sheet, in px. */
     fun pageContentWidth(context: Context): Int =
@@ -284,7 +285,7 @@ object ViewerRenderer {
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = dp(context, 5f) }
+                ).apply { bottomMargin = dp(context, PAGE_GAP_DP) }
             )
         }
         onPageCount(pages.size)

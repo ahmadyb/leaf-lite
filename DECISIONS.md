@@ -464,3 +464,11 @@ reading; the footer with the page/slide indicator and the toggle itself stays
 visible (Markdown keeps the footer bar for this reason), find closes if open,
 and the mode never applies while loading or on errors so Back stays reachable.
 System Back still exits the viewer.
+
+**v1.1.5: bring page endings closer.** User confirmed the visible gap between
+page 1 and page 2 still felt too large. Set one 2dp vertical `PAGE_GAP_DP`
+for the DOCX page cards and PowerPoint slides. PDF pages had a separate
+14dp top margin (shared with their 14dp side gutter); split out
+`doc_page_gap=2dp` so PDF pages also sit closer without narrowing the page's
+side margins. Keep the subtle page boundary and preserve the existing
+horizontal inset.

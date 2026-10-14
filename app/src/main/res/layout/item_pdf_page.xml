@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:layout_marginStart="@dimen/doc_page_margin"
     android:layout_marginEnd="@dimen/doc_page_margin"
-    android:layout_marginTop="@dimen/doc_page_margin"
+    android:layout_marginTop="@dimen/doc_page_gap"
     android:background="@drawable/bg_doc_page"
     android:elevation="1dp">
 
