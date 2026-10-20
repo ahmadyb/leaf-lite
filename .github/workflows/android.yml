@@ -67,6 +67,20 @@ jobs:
           # failure excerpt so the error is readable without the log download.
           esc() { sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' "$1" | tr -d '\n'; }
           grep -nE '^e: |error:|FAILED|What went wrong|Execution failed|Caused by|Could not|FAILURE|Unresolved' gradle-build.log | head -40 > errors.txt || true
+          python3 - <<'PY' >> errors.txt
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for report in Path('app/build/test-results/testReleaseUnitTest').glob('TEST-*.xml'):
+              try:
+                  root = ET.parse(report).getroot()
+              except ET.ParseError:
+                  continue
+              for case in root.iter('testcase'):
+                  failure = case.find('failure')
+                  if failure is not None:
+                      name = f"{case.get('classname', '')}.{case.get('name', '')}"
+                      print(f"JUnit failure {name}: {failure.get('message', '')}")
+          PY
           tail -n 80 gradle-build.log > tail.txt || true
           if [ -s errors.txt ]; then echo "::error::$(esc errors.txt)"; fi
           echo "::warning::$(esc tail.txt)"
