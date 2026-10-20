@@ -20,7 +20,7 @@ object PdfTextExtractor {
 
     private const val MAX_BYTES = 32 * 1024 * 1024
     private const val MAX_OBJECT_STREAM_OBJECTS = 4096
-    private val FONT_SELECT_TAIL = Regex("""^\s+[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s+Tf\b""")
+    private val FONT_SELECTION = Regex("""^/([A-Za-z0-9_]+)\s+[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s+Tf\b""")
 
     /** One string per page (empty string when a page has no text layer). */
     fun extract(open: () -> InputStream?): List<String> {
@@ -330,17 +330,17 @@ object PdfTextExtractor {
             val c = text[i]
             when {
                 c == '/' -> {
-                    // PDF selects a font as `/F1 12 Tf`: the numeric size is
-                    // between the resource name and operator.
-                    val nameStart = (i + 1).coerceAtMost(n)
-                    val end = (nameStart until (i + 24).coerceAtMost(n))
-                        .firstOrNull { !text[it].isLetterOrDigit() } ?: (i + 2).coerceAtMost(n)
-                    val name = text.substring(nameStart, end)
-                    val tail = text.substring(end, (end + 32).coerceAtMost(n))
-                    if (FONT_SELECT_TAIL.find(tail)?.range?.first == 0) {
-                        font = fonts[name]
+                    // Keep the complete PDF font-selection syntax together:
+                    // `/F1 12 Tf`. The font size is mandatory between name and
+                    // Tf, so a font-looking name elsewhere is not a selection.
+                    val tail = text.substring(i, (i + 64).coerceAtMost(n))
+                    val selection = FONT_SELECTION.find(tail)
+                    if (selection != null && selection.range.first == 0) {
+                        font = fonts[selection.groupValues[1]]
+                        i += selection.range.last + 1
+                    } else {
+                        i++
                     }
-                    i = end
                 }
                 c == '(' -> {
                     val close = matchParen(text, i)

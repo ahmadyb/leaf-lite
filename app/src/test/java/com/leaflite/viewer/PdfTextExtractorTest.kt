@@ -48,7 +48,7 @@ class PdfTextExtractorTest {
     fun `uses compressed ToUnicode maps with Type0 fonts`() {
         val pages = PdfTextExtractor.extract { ByteArrayInputStream(toUnicodePdf()) }
         assertEquals(1, pages.size)
-        assertTrue(pages.single().contains("PDFX"))
+        assertTrue("Type0 /ToUnicode mapping should decode PDFX, got: ${pages.single()}", pages.single().contains("PDFX"))
     }
 
     @Test
