@@ -45,11 +45,28 @@ class PdfTextExtractorTest {
     }
 
     @Test
-    fun `uses compressed ToUnicode maps with Type0 fonts`() {
-        val pages = PdfTextExtractor.extract { ByteArrayInputStream(toUnicodePdf()) }
-        assertEquals(1, pages.size)
-        assertTrue("Type0 /ToUnicode mapping should decode PDFX, got: ${pages.single()}", pages.single().contains("PDFX"))
-    }
+    fun `applies a Type0 ToUnicode map without compression`() = assertType0Text(
+        compressContent = false,
+        compressCMap = false
+    )
+
+    @Test
+    fun `inflates a compressed Type0 ToUnicode map`() = assertType0Text(
+        compressContent = false,
+        compressCMap = true
+    )
+
+    @Test
+    fun `reads a compressed Type0 content stream with an uncompressed CMap`() = assertType0Text(
+        compressContent = true,
+        compressCMap = false
+    )
+
+    @Test
+    fun `uses compressed ToUnicode maps with Type0 fonts`() = assertType0Text(
+        compressContent = true,
+        compressCMap = true
+    )
 
     @Test
     fun `reads page tree objects packed in a Flate object stream`() {
@@ -66,6 +83,14 @@ class PdfTextExtractorTest {
     }
 
     // ------------------------------------------------------------------ fixture
+
+    private fun assertType0Text(compressContent: Boolean, compressCMap: Boolean) {
+        val pages = PdfTextExtractor.extract {
+            ByteArrayInputStream(toUnicodePdf(compressContent, compressCMap))
+        }
+        assertEquals(1, pages.size)
+        assertTrue("Type0 /ToUnicode mapping should decode PDFX, got: ${pages.single()}", pages.single().contains("PDFX"))
+    }
 
     private fun simplePdf(text: String): ByteArray = multiPagePdf(listOf(text))
 
@@ -110,9 +135,10 @@ class PdfTextExtractorTest {
         return buildPdf(objects)
     }
 
-    private fun toUnicodePdf(): ByteArray {
-        val content = zlib("BT /F1 12 Tf 72 700 Td <0001000200030004> Tj ET")
-        val cmap = zlib(
+    private fun toUnicodePdf(compressContent: Boolean, compressCMap: Boolean): ByteArray {
+        val contentText = b("BT /F1 12 Tf 72 700 Td <0001000200030004> Tj ET")
+        val content = if (compressContent) zlib(contentText) else contentText
+        val cmapText = b(
             """begincmap
                 1 begincodespacerange
                 <0000> <FFFF>
@@ -125,6 +151,7 @@ class PdfTextExtractorTest {
                 endbfchar
                 endcmap"""
         )
+        val cmap = if (compressCMap) zlib(cmapText) else cmapText
         return buildPdf(
             listOf(
                 b("<< /Type /Catalog /Pages 2 0 R >>"),
@@ -133,9 +160,9 @@ class PdfTextExtractorTest {
                     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] " +
                         "/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>"
                 ),
-                streamObject(content),
+                streamObject(content, compressContent),
                 b("<< /Type /Font /Subtype /Type0 /ToUnicode 6 0 R >>"),
-                streamObject(cmap)
+                streamObject(cmap, compressCMap)
             )
         )
     }
@@ -184,9 +211,11 @@ class PdfTextExtractorTest {
         DeflaterOutputStream(buffer).use { it.write(bytes) }
     }.toByteArray()
 
-    private fun streamObject(stream: ByteArray): ByteArray =
-        b("<< /Length ${stream.size} /Filter /FlateDecode >>") +
+    private fun streamObject(stream: ByteArray, compressed: Boolean = true): ByteArray {
+        val filter = if (compressed) " /Filter /FlateDecode" else ""
+        return b("<< /Length ${stream.size}$filter >>") +
             "stream\n".toByteArray() + stream + "\nendstream".toByteArray()
+    }
 
     private fun buildPdf(objects: List<ByteArray>): ByteArray =
         buildPdfWithIds(objects.mapIndexed { index, bytes -> index + 1 to bytes }.toMap())
