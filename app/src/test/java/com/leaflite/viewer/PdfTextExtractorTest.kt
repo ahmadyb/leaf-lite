@@ -89,6 +89,7 @@ class PdfTextExtractorTest {
             ByteArrayInputStream(toUnicodePdf(compressContent, compressCMap))
         }
         assertEquals(1, pages.size)
+        assertTrue("plain Type1 sanity text should survive, got: ${pages.single()}", pages.single().contains("visible-check"))
         assertTrue("Type0 /ToUnicode mapping should decode PDFX, got: ${pages.single()}", pages.single().contains("PDFX"))
     }
 
@@ -136,7 +137,7 @@ class PdfTextExtractorTest {
     }
 
     private fun toUnicodePdf(compressContent: Boolean, compressCMap: Boolean): ByteArray {
-        val contentText = b("BT /F1 12 Tf 72 700 Td <0001000200030004> Tj ET")
+        val contentText = b("BT /F1 12 Tf 72 700 Td <0001000200030004> Tj /F2 12 Tf (visible-check) Tj ET")
         val content = if (compressContent) zlib(contentText) else contentText
         val cmapText = b(
             """begincmap
@@ -158,11 +159,12 @@ class PdfTextExtractorTest {
                 b("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
                 b(
                     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] " +
-                        "/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>"
+                        "/Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 7 0 R >> >> >>"
                 ),
                 streamObject(content, compressContent),
                 b("<< /Type /Font /Subtype /Type0 /ToUnicode 6 0 R >>"),
-                streamObject(cmap, compressCMap)
+                streamObject(cmap, compressCMap),
+                b("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
             )
         )
     }
