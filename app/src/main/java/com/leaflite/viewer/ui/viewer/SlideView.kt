@@ -70,10 +70,11 @@ class SlideView @JvmOverloads constructor(
         val slide = this.slide ?: return
         val radius = 12f * resources.displayMetrics.density
         val rect = RectF(0f, 0f, width.toFloat(), height.toFloat())
-        pagePaint.color = ContextCompat.getColor(
-            context,
-            if (darkPages) R.color.card else Color.WHITE
-        )
+        pagePaint.color = if (darkPages) {
+            ContextCompat.getColor(context, R.color.card)
+        } else {
+            Color.WHITE
+        }
         canvas.drawRoundRect(rect, radius, radius, pagePaint)
         borderPaint.color = ContextCompat.getColor(context, R.color.line)
         canvas.drawRoundRect(rect, radius, radius, borderPaint)
@@ -138,11 +139,15 @@ class SlideView @JvmOverloads constructor(
                 if (run.sizePt > 4f) baseSize = run.sizePt
             }
             if (text.isEmpty()) {
-                top += baseSize * scale * 0.5f
+                top += baseSize * EMU_PER_POINT * scale * 0.5f
                 continue
             }
 
-            textPaint.textSize = baseSize * scale
+            // Shape geometry is measured in EMUs, while OOXML run sizes are
+            // points. Convert points to EMUs before applying the slide-to-view
+            // scale; multiplying points by px-per-EMU directly made all text
+            // effectively zero-sized on screen.
+            textPaint.textSize = (baseSize * EMU_PER_POINT * scale).coerceAtLeast(1f)
             textPaint.isFakeBoldText = para.runs.any { it.bold }
             textPaint.isUnderlineText = false
             textPaint.typeface = if (para.runs.any { it.italic }) {
@@ -152,7 +157,7 @@ class SlideView @JvmOverloads constructor(
             }
             textPaint.color = ContextCompat.getColor(context, R.color.text)
 
-            val indent = para.level * 14f * scale
+            val indent = para.level * 14f * EMU_PER_POINT * scale
             val layout = StaticLayout.Builder.obtain(
                 text, 0, text.length, textPaint, maxWidth.toInt().coerceAtLeast(48)
             )
@@ -170,7 +175,7 @@ class SlideView @JvmOverloads constructor(
             canvas.translate(left + indent, top)
             layout.draw(canvas)
             canvas.restore()
-            top += layout.height + 4f * scale
+            top += layout.height + 4f * EMU_PER_POINT * scale
         }
     }
 
@@ -182,5 +187,9 @@ class SlideView @JvmOverloads constructor(
             0.587 * Color.green(color) +
             0.114 * Color.blue(color)) / 255.0
         return if (luminance < 0.55) null else color
+    }
+
+    private companion object {
+        const val EMU_PER_POINT = 12700f
     }
 }

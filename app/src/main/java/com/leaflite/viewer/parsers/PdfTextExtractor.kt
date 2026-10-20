@@ -19,6 +19,8 @@ import java.util.zip.Inflater
 object PdfTextExtractor {
 
     private const val MAX_BYTES = 32 * 1024 * 1024
+    private const val MAX_OBJECT_STREAM_OBJECTS = 4096
+    private val FONT_SELECT_TAIL = Regex("""^\s+[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s+Tf\b""")
 
     /** One string per page (empty string when a page has no text layer). */
     fun extract(open: () -> InputStream?): List<String> {
@@ -69,7 +71,46 @@ object PdfTextExtractor {
                 result[number] = bytes.copyOfRange(start, end)
             }
         }
+        expandObjectStreams(result)
         return result
+    }
+
+    /** Adds ordinary objects packed inside PDF 1.5+ `/ObjStm` containers. */
+    private fun expandObjectStreams(objects: MutableMap<Int, ByteArray>) {
+        val containers = objects.values.filter { hasType(it, "ObjStm") }
+        for (container in containers) {
+            val dictionary = String(container, Charsets.ISO_8859_1)
+            val count = Regex("/N\\s+(\\d+)").find(dictionary)
+                ?.groupValues?.get(1)?.toIntOrNull()
+                ?.takeIf { it in 1..MAX_OBJECT_STREAM_OBJECTS } ?: continue
+            val first = Regex("/First\\s+(\\d+)").find(dictionary)
+                ?.groupValues?.get(1)?.toIntOrNull() ?: continue
+            val decoded = streamBytes(container) ?: continue
+            if (first < 0 || first > decoded.size) continue
+
+            val header = String(decoded, 0, first, Charsets.ISO_8859_1)
+            val pairs = Regex("(\\d+)\\s+(\\d+)")
+                .findAll(header)
+                .take(count)
+                .mapNotNull { match ->
+                    val number = match.groupValues[1].toIntOrNull() ?: return@mapNotNull null
+                    val offset = match.groupValues[2].toIntOrNull() ?: return@mapNotNull null
+                    number to offset
+                }
+                .toList()
+            if (pairs.size != count) continue
+
+            val payloadSize = decoded.size - first
+            pairs.forEachIndexed { index, (number, offset) ->
+                val endOffset = pairs.getOrNull(index + 1)?.second ?: payloadSize
+                if (number <= 0 || offset < 0 || endOffset < offset || endOffset > payloadSize) {
+                    return@forEachIndexed
+                }
+                if (number !in objects) {
+                    objects[number] = decoded.copyOfRange(first + offset, first + endOffset)
+                }
+            }
+        }
     }
 
     // ----------------------------------------------------------- page tree
@@ -173,21 +214,38 @@ object PdfTextExtractor {
         return if (body.contains("/FlateDecode")) inflate(data) ?: data else data
     }
 
-    private fun inflate(data: ByteArray): ByteArray? = try {
-        val inflater = Inflater(true)
-        inflater.setInput(data)
-        val out = ByteArrayOutputStream(data.size * 4)
-        val chunk = ByteArray(64 * 1024)
-        while (!inflater.finished()) {
-            val count = inflater.inflate(chunk)
-            if (count == 0 && inflater.needsInput()) break
-            out.write(chunk, 0, count)
-            if (out.size() > 24 * 1024 * 1024) break
+    /**
+     * PDF FlateDecode streams are zlib-wrapped (nowrap=false). A few malformed
+     * producers write raw DEFLATE instead, so retry that form only if the
+     * standards-compliant zlib decode fails.
+     */
+    private fun inflate(data: ByteArray): ByteArray? =
+        inflate(data, nowrap = false) ?: inflate(data, nowrap = true)
+
+    private fun inflate(data: ByteArray, nowrap: Boolean): ByteArray? {
+        val inflater = Inflater(nowrap)
+        return try {
+            inflater.setInput(data)
+            val out = ByteArrayOutputStream((data.size * 4).coerceAtMost(64 * 1024))
+            val chunk = ByteArray(64 * 1024)
+            while (!inflater.finished()) {
+                val count = inflater.inflate(chunk)
+                if (count > 0) {
+                    out.write(chunk, 0, count)
+                    if (out.size() > 24 * 1024 * 1024) return null
+                } else if (inflater.needsInput() || inflater.needsDictionary()) {
+                    return null
+                } else {
+                    // No input or output progress: reject rather than loop forever.
+                    return null
+                }
+            }
+            out.toByteArray()
+        } catch (t: Throwable) {
+            null
+        } finally {
+            inflater.end()
         }
-        inflater.end()
-        out.toByteArray()
-    } catch (t: Throwable) {
-        null
     }
 
     // --------------------------------------------------------------- CMaps
@@ -272,12 +330,14 @@ object PdfTextExtractor {
             val c = text[i]
             when {
                 c == '/' -> {
-                    // /F1 12 Tf  — remember the font; only meaningful near Tf.
-                    val end = (i + 1 until i + 24).firstOrNull { !text[it].isLetterOrDigit() } ?: (i + 2)
-                    val name = text.substring(i + 1, end)
-                    var j = end
-                    while (j < n && j < end + 16 && text[j] == ' ') j++
-                    if (j + 2 < n && text[j] == 'T' && text[j + 1] == 'f') {
+                    // PDF selects a font as `/F1 12 Tf`: the numeric size is
+                    // between the resource name and operator.
+                    val nameStart = (i + 1).coerceAtMost(n)
+                    val end = (nameStart until (i + 24).coerceAtMost(n))
+                        .firstOrNull { !text[it].isLetterOrDigit() } ?: (i + 2).coerceAtMost(n)
+                    val name = text.substring(nameStart, end)
+                    val tail = text.substring(end, (end + 32).coerceAtMost(n))
+                    if (FONT_SELECT_TAIL.find(tail)?.range?.first == 0) {
                         font = fonts[name]
                     }
                     i = end

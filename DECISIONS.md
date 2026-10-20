@@ -472,3 +472,22 @@ for the DOCX page cards and PowerPoint slides. PDF pages had a separate
 `doc_page_gap=2dp` so PDF pages also sit closer without narrowing the page's
 side margins. Keep the subtle page boundary and preserve the existing
 horizontal inset.
+
+**v1.1.6: PDF find and PPTX opening failures.** PDF search now decodes
+standards-compliant zlib-wrapped `/FlateDecode` streams first (retaining a
+raw-DEFLATE fallback), reads `/F1 12 Tf` font selections correctly so
+`/ToUnicode` CMaps are actually applied, and expands bounded PDF 1.5+ object
+streams. Search waits briefly for the query to settle, cancels stale requests,
+and serializes the one-time PDF text extraction so fast typing cannot publish
+an old result or trigger duplicate full-document parses. Regression tests
+cover compressed streams, Type0 fonts/CMaps, object streams, and the real
+repository PDF through a `file://` URI.
+
+PPTX was parsed but could crash while drawing: the light slide background
+passed `Color.WHITE` (a color value) to `ContextCompat.getColor` (which expects
+a resource id), and run font sizes in points were multiplied directly by
+pixels-per-EMU, reducing all text to effectively zero pixels. The background
+now uses the literal color directly; points convert to EMUs before scaling.
+Instrumented tests open the real repository deck from a file URI and render a
+slide to verify visible text pixels, in addition to the existing slide-part
+filter test.

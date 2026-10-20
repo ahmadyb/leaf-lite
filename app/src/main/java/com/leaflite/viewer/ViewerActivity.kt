@@ -36,6 +36,8 @@ import com.leaflite.viewer.ui.viewer.TextFinder
 import com.leaflite.viewer.ui.viewer.ViewerRenderer
 import com.leaflite.viewer.ui.viewer.ViewerViewModel
 import com.leaflite.viewer.util.matchStatusBarHeight
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -66,6 +68,7 @@ class ViewerActivity : AppCompatActivity() {
     private var textMatches: List<TextFinder.Match> = emptyList()
     private var findIndex = 0
     private var pdfHits: List<Pair<Int, Int>> = emptyList() // page -> occurrence
+    private var pdfFindJob: Job? = null
     private var slideHits: List<Pair<Int, Int>> = emptyList() // slide -> occurrence
     private var sheetHitRows: List<Int> = emptyList()
 
@@ -211,6 +214,8 @@ class ViewerActivity : AppCompatActivity() {
 
     private fun closeFind() {
         binding.findBar.isVisible = false
+        pdfFindJob?.cancel()
+        pdfFindJob = null
         binding.findInput.text?.clear()
         TextFinder.clear(binding.contentHolder)
         (binding.sheetRecycler.adapter as? SheetAdapter)?.highlightQuery = ""
@@ -223,6 +228,8 @@ class ViewerActivity : AppCompatActivity() {
 
     /** Re-runs the search for the current query against the visible format. */
     private fun runFind() {
+        pdfFindJob?.cancel()
+        pdfFindJob = null
         val query = binding.findInput.text?.toString().orEmpty()
         TextFinder.clear(binding.contentHolder)
         (binding.sheetRecycler.adapter as? SheetAdapter)?.highlightQuery = query
@@ -273,18 +280,31 @@ class ViewerActivity : AppCompatActivity() {
                 return
             }
             is ViewerViewModel.Content.Pdf -> {
-                lifecycleScope.launch {
+                pdfFindJob = lifecycleScope.launch {
+                    if (query.isEmpty() || !binding.findBar.isVisible) {
+                        updateFindCount()
+                        return@launch
+                    }
+                    // Avoid launching one full-document extraction for every
+                    // typed character; only the latest query should publish.
+                    delay(PDF_FIND_DEBOUNCE_MS)
+                    if (binding.findInput.text?.toString().orEmpty() != query ||
+                        !binding.findBar.isVisible
+                    ) return@launch
+
                     val pages = viewModel.pdfPageText()
+                    if (binding.findInput.text?.toString().orEmpty() != query ||
+                        !binding.findBar.isVisible
+                    ) return@launch
+
+                    val needle = query.lowercase()
                     pdfHits = pages.flatMapIndexed { page, text ->
                         val hay = text.lowercase()
-                        val needle = query.lowercase()
                         val hits = ArrayList<Pair<Int, Int>>()
-                        if (needle.isNotEmpty()) {
-                            var index = hay.indexOf(needle)
-                            while (index >= 0) {
-                                hits += page to hits.size
-                                index = hay.indexOf(needle, index + needle.length)
-                            }
+                        var index = hay.indexOf(needle)
+                        while (index >= 0) {
+                            hits += page to hits.size
+                            index = hay.indexOf(needle, index + needle.length)
                         }
                         hits
                     }
@@ -873,5 +893,6 @@ class ViewerActivity : AppCompatActivity() {
         private const val KEY_PAGE = "viewer.page"
         private const val KEY_SHEET = "viewer.sheet"
         private const val KEY_SCALE = "viewer.scale"
+        private const val PDF_FIND_DEBOUNCE_MS = 140L
     }
 }

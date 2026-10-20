@@ -24,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -176,17 +178,21 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     /** Per-page extracted text for find-in-document (PDFs only, lazy). */
     private var pdfText: List<String>? = null
+    private val pdfTextMutex = Mutex()
 
     suspend fun pdfPageText(): List<String> = withContext(Dispatchers.IO) {
-        pdfText ?: run {
-            val target = uri
-            val text = if (target == null) {
-                emptyList()
-            } else {
-                runCatching { PdfTextExtractor.extract { openStream(target) } }.getOrDefault(emptyList())
+        pdfTextMutex.withLock {
+            pdfText ?: run {
+                val target = uri
+                val text = if (target == null) {
+                    emptyList()
+                } else {
+                    runCatching { PdfTextExtractor.extract { openStream(target) } }
+                        .getOrDefault(emptyList())
+                }
+                pdfText = text
+                text
             }
-            pdfText = text
-            text
         }
     }
 
