@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Three-tab bar. Height is 64dp plus whatever the navigation bar inset adds
+  (BottomTabBar applies the inset as bottom padding at runtime).
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <LinearLayout
+        android:id="@+id/tabLibrary"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@drawable/ripple_borderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_horizontal"
+        android:minHeight="@dimen/tabbar_height"
+        android:orientation="vertical"
+        android:paddingTop="9dp">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/tabLibraryIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            app:srcCompat="@drawable/ic_tab_library"
+            app:tint="@color/tab_idle" />
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/tabLibraryLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/tab_library"
+            android:textAppearance="@style/TextAppearance.Leaf.TabLabel"
+            android:textColor="@color/tab_idle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/tabStarred"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@drawable/ripple_borderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_horizontal"
+        android:minHeight="@dimen/tabbar_height"
+        android:orientation="vertical"
+        android:paddingTop="9dp">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/tabStarredIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            app:srcCompat="@drawable/ic_tab_starred"
+            app:tint="@color/tab_idle" />
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/tabStarredLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/tab_starred"
+            android:textAppearance="@style/TextAppearance.Leaf.TabLabel"
+            android:textColor="@color/tab_idle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/tabSettings"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@drawable/ripple_borderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_horizontal"
+        android:minHeight="@dimen/tabbar_height"
+        android:orientation="vertical"
+        android:paddingTop="9dp">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/tabSettingsIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            app:srcCompat="@drawable/ic_tab_settings"
+            app:tint="@color/tab_idle" />
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/tabSettingsLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/tab_settings"
+            android:textAppearance="@style/TextAppearance.Leaf.TabLabel"
+            android:textColor="@color/tab_idle" />
+    </LinearLayout>
+</merge>

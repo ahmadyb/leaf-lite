@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inline card shown on API 23-28 while storage access has not been granted. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/permissionCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/pad_screen"
+    android:layout_marginEnd="@dimen/pad_screen"
+    android:layout_marginBottom="14dp"
+    android:background="@drawable/bg_card"
+    android:elevation="1dp"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/permissionText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/perm_title"
+        android:textAppearance="@style/TextAppearance.Leaf.Body" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/permissionAction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_button_outline"
+        android:minHeight="44dp"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:text="@string/perm_grant"
+        android:textAllCaps="false"
+        android:textColor="@color/accent"
+        android:textSize="14sp" />
+</LinearLayout>

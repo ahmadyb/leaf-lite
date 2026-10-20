@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One document row: 38dp tinted type tile, name + "{Type} · {Size} · {Date}",
+  and a 48dp trailing zone that shows a gold star (starred) or a chevron and
+  toggles the star when tapped.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/row_height"
+    android:background="@drawable/ripple_row"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingEnd="4dp">
+
+    <FrameLayout
+        android:id="@+id/typeTile"
+        android:layout_width="@dimen/tile_size"
+        android:layout_height="@dimen/tile_size"
+        android:background="@drawable/bg_type_tile">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/typeIcon"
+            android:layout_width="19dp"
+            android:layout_height="19dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/cd_file_type"
+            app:srcCompat="@drawable/ic_type_pdf" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="13dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Leaf.FileSub" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/starZone"
+        android:layout_width="@dimen/touch_target"
+        android:layout_height="@dimen/touch_target"
+        android:background="@drawable/ripple_borderless"
+        android:clickable="true"
+        android:focusable="true">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/trailing"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            app:srcCompat="@drawable/ic_chevron_right"
+            app:tint="@color/chevron" />
+    </FrameLayout>
+</LinearLayout>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/card"
+    android:orientation="vertical"
+    android:paddingTop="8dp"
+    android:paddingBottom="18dp">
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="12dp"
+        android:text="@string/sort_title"
+        android:textAppearance="@style/TextAppearance.Leaf.SectionHeader" />
+
+    <LinearLayout
+        android:id="@+id/optionNameAsc"
+        style="@style/Leaf.SortRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/sort_name_asc"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="@color/accent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/optionNameDesc"
+        style="@style/Leaf.SortRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/sort_name_desc"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="@color/accent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/optionNewest"
+        style="@style/Leaf.SortRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/sort_newest"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="@color/accent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/optionOldest"
+        style="@style/Leaf.SortRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/sort_oldest"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="@color/accent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/optionLargest"
+        style="@style/Leaf.SortRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/sort_largest"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="@color/accent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/optionSmallest"
+        style="@style/Leaf.SortRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/sort_smallest"
+            android:textAppearance="@style/TextAppearance.Leaf.FileName" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="@color/accent" />
+    </LinearLayout>
+</LinearLayout>

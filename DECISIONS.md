@@ -1,0 +1,493 @@
+# Leaf Lite — engineering decisions
+
+Every judgment call made while building Leaf Lite, including the ones the master
+prompt did not cover. Where the prompt offered a choice, the smaller and simpler
+option won.
+
+---
+
+## 0. Environment / verification honesty
+
+The sandbox this project was authored in has **no JDK and no Android SDK**, and
+only `github.com`, `codeload.github.com`, `api.github.com`, `registry.npmjs.org`,
+`pypi.org` and `files.pythonhosted.org` are reachable — Google Maven and Maven
+Central are not. So:
+
+* `./gradlew assembleRelease bundleRelease` could **not** be executed in the
+  authoring sandbox. It **is** executed on every push by GitHub Actions
+  (`.github/workflows/android.yml`), which produced the real artefacts and the
+  real size numbers reported in `README.md` → *Size budget* (universal APK
+  **1.65 MB** file / **1.26 MB** download; AAB download **1.21–1.22 MB**;
+  installed estimate **2.88–3.46 MB** — all well inside the §14 budgets).
+* To compensate, the repository ships `tools/verify_project.py`, a static
+  consistency checker (Kotlin delimiter balance, package/folder agreement,
+  every `R.*` and `@drawable/@string/@color/@dimen/@style` reference,
+  ViewBinding field ↔ layout-id resolution, manifest sanity, no INTERNET
+  permission, no imports outside the allow-list, unused resources). It reports
+  **0 errors** on this tree.
+* The Gradle **wrapper jar and scripts are real** (taken from the Gradle 8.13.0
+  distribution), so `./gradlew` works on a machine with a JDK without any
+  generation step.
+
+---
+
+## 1. Toolchain
+
+| Choice | Value | Why |
+| --- | --- | --- |
+| Android Gradle Plugin | **8.13.2** | Last AGP 8.x line; supports `compileSdk 36` (max API 36.1), stable DSL, JDK 17. AGP 9.x was rejected: it removes `minSdkVersion`/`targetSdkVersion`, changes the Kotlin wiring and adds risk for zero size benefit. |
+| Gradle | **8.13** | Minimum required by AGP 8.13. |
+| Kotlin | **2.1.20** | Latest Kotlin with a mature `kotlin-android` plugin on Gradle 8.13; K2 is stable, no kapt/KSP needed anywhere. |
+| `compileSdk` / `targetSdk` | **36 / 36** | "Latest stable" per the prompt and the Play requirement for new apps/updates (target 36 since Aug 2026). |
+| `minSdk` | **23** | Hard requirement. Every API used is API 23-safe or guarded. |
+| JVM target | 17 | Required by AGP 8.13. |
+
+`keystore.properties` is optional: without it the release build type falls back
+to the debug signing config, so a clean checkout builds `assembleRelease` with
+zero manual edits.
+
+`applicationIdSuffix ".debug"` is applied to debug builds so a debug install and
+a release install can coexist on a test device.
+
+---
+
+## 2. Manifest shape
+
+* **One permission**: `READ_EXTERNAL_STORAGE` with `maxSdkVersion="28"`. No
+  `WRITE_EXTERNAL_STORAGE`, no `MANAGE_EXTERNAL_STORAGE`, no `INTERNET`.
+* **`<queries>`** with an `ACTION_VIEW` intent is *not* a permission — it only
+  lets the "Open in another app" fallback resolve viewers under Android 11+
+  package visibility. Nothing is fetched from the network.
+* **Five `activity-alias` entries** (`ViewerActivityPdf`, …) instead of five
+  `<intent-filter>` blocks on `ViewerActivity`. Reason: a single `<intent-filter>`
+  merges all of its `<data>` elements into a cross-product of scheme × type, and
+  Android's MIME matching for `content:` URIs is unreliable when several types
+  live in one filter. One filter per MIME type (with `content` + `file`
+  schemes) is the pattern the platform documents and the one the framework
+  matches most predictably. The aliases cost ~200 bytes of manifest.
+* **Predictive back**: `android:enableOnBackInvokedCallback="true"` +
+  `OnBackPressedDispatcher` callbacks (never `onBackPressed()` overrides), so
+  API 33+ gets the predictive animation and API 23-32 keeps the old path.
+* **`ViewerActivity` declares no `configChanges`.** The prompt asks both for
+  "configChanges minimal" and for rotation to restore page/scroll/sheet from
+  instance state; those conflict. State restoration (`onSaveInstanceState`) won,
+  because a recreated activity also re-applies the sepia/dark palette and
+  re-measures the PDF page widths — no manual re-layout code, no drift.
+
+---
+
+## 3. Architecture
+
+* Single `MainActivity` + three fragments, **created once and hidden/shown**
+  (not recreated) so scroll position and list state survive tab switches.
+* ViewModels are plain `AndroidViewModel`s with `StateFlow`. The Library
+  ViewModel is **activity-scoped** (`activityViewModels()`), because
+  `MainActivity` must forward SAF import results and runtime-permission results
+  into it.
+* `DocumentRepository` is the only source of truth; it exposes
+  `StateFlow<List<Doc>>` and re-emits after every mutation, which is what keeps
+  Library, Starred and the viewer star button in sync without event buses.
+* No DI: `LeafLiteApp` constructs one repository and one `Prefs`; ViewModels pull
+  them from the `Application`.
+
+---
+
+## 4. Discovery, registry and permissions
+
+* **MediaStore query** uses `MIME_TYPE IN (…)` **OR** `DISPLAY_NAME LIKE '%.ext'`
+  **AND** `SIZE > 0` **AND** `MEDIA_TYPE = MEDIA_TYPE_NONE`, capped at 5,000 rows
+  ordered by `DATE_MODIFIED DESC`. MIME is frequently NULL in MediaStore, so the
+  extension clause is the reliable one; `MEDIA_TYPE_NONE` keeps music/video out
+  of the result set.
+* **Pruning only touches `source='scan'` rows.** Imported and intent-opened
+  documents live behind persisted URI permissions outside MediaStore, so a
+  rescan must never delete them.
+* **Rescans upsert by URI** and deliberately preserve `starred` and
+  `last_opened`.
+* **API 29+ never shows a permission dialog.** On 23-28 the inline card appears
+  only when the permission is actually missing; after a denial the card swaps to
+  the "Import file" variant and never nags by itself.
+* Everything is opened through `ContentResolver`; the raw `_data` column is never
+  read, so scoped storage is a non-issue.
+
+---
+
+## 5. Parsers
+
+### Shared
+* `Zipx` streams entries straight from the `ContentResolver` (no cache copy, no
+  `ZipFile`, which needs random access) and skips payloads it does not need.
+* `LimitInputStream` caps a single ZIP entry at 32 MB, so a hostile archive
+  cannot exhaust the heap (`largeHeap` stays off).
+
+### PDF (`android.graphics.pdf.PdfRenderer`)
+* Opened with `openFileDescriptor(uri, "r")` — works for MediaStore, SAF and
+  `file:` URIs with no copy. `SecurityException`/`IOException` map to the
+  "Preview not available" state (encrypted or truncated PDFs).
+* Bitmaps: render width = page width capped at **1440 px**, longest edge capped
+  at **4096 px**, `ARGB_8888` (the format `PdfRenderer` requires).
+* **At most 3 page bitmaps alive.** The LRU *drops* evicted bitmaps instead of
+  calling `recycle()` on them: a recycled bitmap that is still attached to a
+  visible `ImageView` throws, and on API 26+ pixel data is native and freed by
+  GC anyway. Bitmaps are only explicitly recycled when the activity is
+  destroyed.
+* Rendering runs on a `Dispatchers.Default.limitedParallelism(1)` dispatcher —
+  `PdfRenderer` is not thread-safe — and every job is tied to the
+  activity's `lifecycleScope`.
+* **No shimmer placeholder.** A page card is sized from the real page aspect
+  ratio before the bitmap exists, so there is nothing to shimmer; an animation
+  there would burn CPU on exactly the low-end devices this app targets.
+
+### DOCX
+* Headings come from `w:pStyle`, alignment from `w:jc`, sizes from `w:sz`
+  (half-points → sp, clamped to 6–72), colour from `w:color`; runs support
+  bold/italic/underline/strike.
+* **Numbering without `numbering.xml`**: the first `w:numId` seen becomes a
+  bullet list, the next a numbered one, alternating from then on, with a
+  per-list counter. Reading `numbering.xml` + `numFmt` inheritance would cost
+  another full ZIP pass and ~200 lines for a feature v1 does not need.
+* Tables, hyperlinks (via `word/_rels/document.xml.rels`, external targets only)
+  and inline images (`word/media/*`, resolved in **one** extra ZIP pass and
+  down-sampled to 1600 px) are supported.
+* Skipped without crashing: headers/footers, footnotes, comments, equations,
+  fields, VML shapes. Tracked insertions are shown, deletions dropped
+  (`w:delText` is not `w:t`).
+* Block count is capped at 4,000 so a pathological document cannot freeze the
+  UI while views are built.
+
+### XLSX
+* Structure pass reads `workbook.xml`, `workbook.xml.rels`, `sharedStrings.xml`
+  and `styles.xml` in **one** ZIP walk; sheets are read on demand.
+* **Dates are best-effort**: only built-in number formats (`numFmtId` 14–22 and
+  45–47) are recognised; custom `numFmtId ≥ 164` strings are not parsed and such
+  cells render as raw serials. Documented limitation, as the prompt allows.
+* Numbers: integral values print without `.0`, everything else is capped at two
+  decimals, |value| ≥ 1e15 switches to scientific notation.
+* Caps: **5,000 rows**, **64 columns**, **120,000 cells**. The footer switches to
+  "showing first N rows" when a cap bites.
+
+### TXT / Markdown
+* TXT is read with a BOM check (UTF-8/UTF-16LE/BE) → strict UTF-8 decode →
+  `windows-1252` → `ISO-8859-1`, capped at **2 MB** of source bytes.
+* Markdown supports: ATX headings, paragraphs, `**bold**`, `*italic*`,
+  `` `inline code` ``, fenced code blocks, block quotes, unordered/ordered lists
+  with **one** nesting level, horizontal rules, links (opened with `ACTION_VIEW`)
+  and images (rendered as an `[alt]` placeholder).
+* Not supported (out of scope for ~300 lines): nested block quotes, tables,
+  reference links, inline HTML, setext headings, task list checkboxes.
+
+### Format detection
+Extension first, MIME as corroboration, magic bytes last: `%PDF-` → PDF,
+`PK\x03\x04` → probe the ZIP for `word/document.xml` vs `xl/workbook.xml`,
+printable-only bytes → TXT, anything else → unsupported.
+
+---
+
+## 6. UI / design decisions
+
+* **The screen header does not collapse.** The mockup scrolls the header with the
+  list; on Android that forces a `RecyclerView` header item (extra complexity) or
+  `nestedScrollingEnabled=false` (which inflates every row and destroys the
+  60 fps / 1,000+ document requirement). The header stays pinned and the list
+  owns the remaining height, so rows keep recycling.
+* **Press feedback**: rows, chips, icon buttons and tabs get a material ripple;
+  icon buttons, chips and tabs additionally keep the mockup's scale-down
+  (0.92–0.95). Document rows use the mockup's `#F2F6F3` as the *ripple colour*
+  rather than a two-state selector, which keeps the single-file `ripple_row.xml`
+  and still reads as the mockup.
+* **Per-type tiles** are one `bg_type_tile.xml` tinted at runtime with
+  `ColorUtils.blendARGB(card, type, 0.12f)` — the mockup's 12 % tint, correct in
+  both light and night themes, instead of ten hardcoded colour resources.
+* **Night reading mode** forces `MODE_NIGHT_YES` (chrome = dark palette) and, per
+  §5.1, the **viewer body switches to the sepia palette** (`#F7F1E3` /
+  `#3D3428`). That is intentional: dark chrome, warm page.
+* **Material is used for exactly one thing** — `BottomSheetDialog` for the sort
+  sheet, which the prompt's allow-list mandates. The app theme stays
+  `AppCompatActivity`/AppCompat-based (not `Theme.MaterialComponents`), so every
+  button is an `AppCompatButton` and every switch is hand-drawn; that avoids
+  Material theme enforcement crashes and keeps the dependency's footprint to
+  what R8 can shake.
+* **Insets** are applied with `WindowInsetsControllerCompat` /
+  `WindowInsetsCompat` (works on API 23) and `WindowCompat.setDecorFitsSystemWindows`,
+  so the app is edge-to-edge on API 23 and API 34+ alike, with light status-bar
+  icons in the light theme.
+* The XLSX grid is a `RecyclerView` (vertical, recycling) inside a
+  `HorizontalScrollView` (horizontal), with a separate sticky header row synced
+  via `OnScrollChangedListener`. Far less code than a custom 2D scroller, and it
+  recycles.
+* PDF zoom is a hand-written `ZoomImageView` (matrix + `ScaleGestureDetector` +
+  double-tap). At 1× it never intercepts touches, so paging keeps working; once
+  zoomed it calls `requestDisallowInterceptTouchEvent`.
+
+---
+
+## 7. Size engineering
+
+* `isMinifyEnabled = true`, `isShrinkResources = true`, **R8 full mode**
+  (`android.enableR8.fullMode=true`), `resConfigs("en")`, no bundled fonts, no
+  density/ABI splits (there is no native code).
+* Every icon is a vector drawable; the only rasters are the five launcher PNG
+  buckets (API < 26 fallback), generated from the same artwork by
+  `tools/make_launcher_icons.py`.
+* `proguard-rules.pro` is deliberately tiny: no reflection, no serializers, so
+  nothing but XML-pull and coroutine entry points needs keeping; `Log.d/v/i` are
+  compiled out of release.
+* `tools/verify_project.py` fails the build review if any import outside the
+  allow-list appears, which is how "nothing may be added without a size
+  justification" is enforced mechanically.
+
+**Estimated** (not measured — see §0) release size:
+
+| Artefact | Estimate | Budget |
+| --- | --- | --- |
+| Universal release APK | ~2.5–3.5 MB | ≤ 8 MB |
+| AAB download size | ~1.8–2.8 MB | ≤ 5 MB |
+| Installed on device (APK + ART + first-scan data) | ~7–10 MB | ≤ 15 MB |
+
+The biggest contributors are `kotlin-stdlib` + `kotlinx-coroutines` (≈1.2 MB
+together after R8), `appcompat` (≈0.5 MB) and `material` (only
+`BottomSheetDialog` survives shaking, ≈0.3 MB).
+
+---
+
+## 8. Things deliberately not built
+
+v1 scope, all listed as out of scope by the prompt: editing, annotations, PDF
+text selection/search, `.doc`/`.xls`/`.ppt`, EPUB, DRM, cloud sync, widgets,
+non-English UI. In addition:
+
+* No shimmer/skeleton animation for PDF pages (see §5).
+* No "word wrap off / horizontal scroll" for wide logs — the monospace toggle
+  covers the common case and a second scroll axis doubles the touch handling.
+* No `WorkManager`, services, notifications or jobs: the app does no background
+  work at all.
+
+---
+
+## 9. Assets generated by tooling
+
+| Path | Produced by | Why a script rather than a binary |
+| --- | --- | --- |
+| `samples/*.pdf/.docx/.xlsx/.txt/.md` | `tools/make_samples.py` | The five Appendix D fixtures are reproducible from source (stdlib + Pillow only) and stay tiny in git. |
+| `app/src/main/res/mipmap-*/ic_launcher*.png` | `tools/make_launcher_icons.py` | Same artwork as the adaptive vector, rasterised with a self-contained path renderer (arcs → cubic béziers → polylines). |
+
+---
+
+## 10. Build automation (CI) and size reporting
+
+The authoring sandbox has no Android SDK (§0), so the repository is built for
+real on GitHub Actions — `.github/workflows/android.yml`, `ubuntu-latest`,
+Temurin JDK 17 (AGP 8.13 requires JDK 17).
+
+**Jobs and order.** `build` runs `tools/verify_project.py`, then one Gradle
+invocation for `testReleaseUnitTest lintRelease assembleDebug assembleRelease
+bundleRelease` (single configuration pass, shared build cache), then
+`tools/size_report.sh`, then uploads artefacts. `smoke-test` (needs `build`)
+runs `connectedDebugAndroidTest` on an **API 23 emulator** — the minSdk floor is
+where compatibility breaks would appear, and the smoke test is device-agnostic.
+`release` runs only on `v*` tags and publishes the bits with `gh release
+create`.
+
+**Wrapper integrity.** `gradle/actions/wrapper-validation@v6` is enabled. The
+wrapper jar committed at `gradle/wrapper/gradle-wrapper.jar` has sha256
+`81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f`, which is
+the **official** Gradle 8.13 wrapper checksum in the action's allow-list —
+verified against `gradle/actions`' `wrapper-checksums.json` before wiring the
+step in (the jar is byte-identical to `gradle/wrapper/gradle-wrapper.jar` at
+`gradle/gradle` tag `v8.13.0`).
+
+**Size reporting — `tools/size_report.sh`.** One script produces every number
+§14 asks for and enforces the budgets (exit 1 on breach, `STRICT=0` to warn
+only):
+
+* universal APK **file size** and **download size** via `apkanalyzer` (budget
+  8 MB each);
+* AAB **download size min..max** via `bundletool build-apks` +
+  `get-size total` across all device configurations (budget 5 MB max);
+* **installed footprint** estimated as the uncompressed APK payload
+  ×1.0–1.2 (the 20 % upper bound is the oat/vdex allowance). Rationale: a true
+  on-device `du` measurement needs a device; the estimate is deterministic and
+  conservative, and the emulator smoke job proves the app installs on the
+  floor API. The `adb` commands for a manual measurement are in `README.md`;
+* **hard contract gates**: minSdk must be exactly 23 and the manifest must
+  contain zero `android.permission.INTERNET`, regardless of sizes.
+
+**Signing on CI.** No signing secrets exist on the runner, so
+`app/build.gradle.kts`' existing fallback applies: the release APK is signed
+with the Gradle **debug keystore** (AGP generates `~/.android/debug.keystore`
+on the runner). That makes CI APKs installable for QA but **not Play-eligible**;
+production signing is the documented `keystore.properties` route. This is
+deliberate: no key material is ever stored in the repository or workflow.
+
+**Action versions.** Pinned to the current majors at the time of writing
+(checkout v7, setup-java v6, upload-artifact v7, download-artifact v8,
+gradle/actions v6, android-emulator-runner v2).
+
+## 11. v1.1 decisions (PPTX, discovery, share-out, pagination, find, zoom)
+
+**PPTX engine.** Same ZIP + `XmlPullParser` stack as DOCX/XLSX — no new
+dependency, the §10 allow-list is untouched. The parser reads slide geometry
+from `a:off`/`a:ext` (EMU units, scaled by `viewWidth / (sldSz/12700)`),
+text runs with b/i/sz/srgbClr, bullet paragraphs, pictures via slide rels,
+slide order from `ppt/presentation.xml`, and flattens grouped shapes
+(child offsets are reported relative to the group box). Tables degrade to
+plain text rows (the mockup has no slide-table component and no spreadsheet
+widget was reused for slides). This covers presentation text/decks — the
+actual acceptance surface; fancy SmartArt/WordArt is out of scope by design.
+
+**Discovery rework.** Scoped storage made `MediaStore.Files` blind to
+documents on API 29+ (only the app's own files are visible) and forbids
+`MANAGE_EXTERNAL_STORAGE`. The only *official* document access on modern
+Android is SAF with no permission at all. v1.1 therefore layers: (1) user
+grants of folder trees via `ACTION_OPEN_DOCUMENT_TREE` (persistable URIs,
+manual `DocumentsContract` tree walk — deliberately **not** adding
+`androidx.documentfile`), kept across restarts; (2) MediaStore + Downloads
+fallback on versions/storage states where it still sees files. The permission
+card is now a boundary explainer with "Choose folder" rather than a
+READ_EXTERNAL_STORAGE gate (pre-23-safe, Android 13+ correct).
+
+**DOCX pagination.** Documents are measured (page width = screen minus
+gutters, height = width × 1.30) and laid out into page sheets with
+`bg_doc_page` paper. Page breaks split at block boundaries; a `w:br type="page"`
+inside a paragraph breaks *before* that paragraph — off by at most one
+paragraph, accepted because per-line re-flow would cost a full text layout
+engine. Night themes get dark pages (`darkPages = night && !sepia`); night
+tables had invisible text because DOCX run colours are authored for white
+paper (e.g. white text in header cells). `ViewerRenderer.adaptColors` strips
+spans whose luminance would vanish against the page (dark runs on dark pages,
+light runs on light pages) instead of shipping a colour-mapping table.
+
+**PDF zoom quality.** Pinch/double-tap still scales a fixed bitmap; when the
+zoom settles, the page is re-rendered at `base × scale` (clamped to 2048 px,
+one hi-res page alive at a time) and swapped with a compensating pre-scale so
+no jump occurs. Same trick, no library.
+
+**Find-in-document.** Text formats highlight through `TextFinder`
+(`BackgroundColorSpan` wash over every `TextView` in the tree, scroll-to-match).
+XLSX finds at the data level and washes cells via `SheetAdapter.highlightQuery`.
+PDF has no text API in `android.graphics.pdf`, so `PdfTextExtractor` is a
+from-scratch content-stream reader (object table, Flate, Tj/TJ/'/" operators,
+`/ToUnicode` CMaps, Latin-1 fallback). Scanned pages without a text layer
+simply report no matches — search is a best-effort aid, not an index.
+
+**Share-out.** Every document can be handed to other apps via `ACTION_SEND`
+(viewer share button, row long-press). The file is copied into the
+FileProvider-exposed `cache/shared` directory first (existing
+"Open in another app" mechanism), because SAF/MediaStore source URIs cannot
+re-grant read access to arbitrary receivers. Zero new dependencies.
+
+**Text pinch-zoom (DOCX/TXT/MD).** A `ScaleGestureDetector` on the scroll
+container re-renders the document at a new `textScale` (0.7×–2.5×) and keeps
+the scroll anchor. Cheap and consistent across the three text formats; slides
+stay geometry-accurate and PDF has its own zoom.
+
+## 12. v1.1.1 fixes (auto discovery, zoom regressions, find, CI coverage)
+
+**Why `maxSdkVersion="32"` and not 36.** `READ_EXTERNAL_STORAGE` is the only
+document permission Android ever gave normal apps through Android 12, and
+Android 13 (API 33) *killed it for documents*: the OS no longer shows a
+dialog, grants nothing, and `READ_MEDIA_*` only covers images/video/audio.
+Declaring it through 36 would be a dead entry (and Play flags unused
+permissions). 32 is the last API where requesting it actually unlocks other
+apps' documents (MediaStore.Files on 23-28, plus the Downloads collection on
+29-32).
+
+**All files access on Android 13+ (user decision, spec amended).** The build
+prompt originally forbade `MANAGE_EXTERNAL_STORAGE`; with that rule the
+library could never fill itself automatically on Android 13+ (the OS offers
+no other channel for documents). The user explicitly chose automatic
+discovery over the restriction (2026-10-13), so v1.1.2 declares
+`MANAGE_EXTERNAL_STORAGE` and requests it on 33+ only. The flow per band:
+23-32 one runtime `READ_EXTERNAL_STORAGE` prompt; 33+ an explanation dialog
+then the system's All files access screen. With either grant the MediaStore
+scan sees every document and the library fills itself — folder picking is
+never required. Nothing network-facing changed: still zero INTERNET.
+
+**Automatic library.** The permission prompt now happens once on first launch
+(not behind a card the user must discover), and the empty state leads with
+*Grant access* / *Import file* — folder picking is menu-only. `MediaStoreScanner`
+checks the real permission through 32 instead of assuming Q+ is always granted.
+
+**Zoom regressions (PDF).** `ZoomImageView.swapBitmap` used to reset the
+transform when handed a bitmap of the same width (which happened on every
+pan finger-up after the hi-res swap): the zoom snapped back to fit while the
+internal `scale` stayed >1, so the next double-tap shrank the page below fit.
+Swaps now never touch the transform at equal size, `onZoomSettled` fires only
+after a real zoom change (pinch or double-tap, never after pans), and
+`upgradeHiRes` leaves an already-displayed sharp bitmap alone. Text pinch-zoom
+re-renders are debounced (140 ms) and skipped when the scale barely moved.
+
+**Find fixes.** Spreadsheets track matched rows for counting/stepping (the
+count used to claim "No matches" while highlighting rows), and the PDF text
+extractor is now pinned by JVM tests (`PdfTextExtractorTest`) over the same
+uncompressed-Tj structure `make_samples.py` produces.
+
+**v1.1.3: discovery robustness (files still showed 0).** MediaStore only
+lists what the media scanner indexed — adb-pushed files, OEM copies and
+fresh volumes can be invisible to it even with every permission granted.
+`FileSystemScanner` now walks shared storage directly alongside MediaStore
+(with the same legal access: READ on 23-28, All files on 30+), and the two
+feeds are de-duplicated by name+size. `MediaStoreScanner.scan()` is
+best-effort instead of failing closed, and the All files intent opens the
+*package-specific* settings screen first (the generic action silently opened
+a confusing global list on some devices and failed on others). The
+instrumented suite now plants an own document and asserts the pipeline finds
+it on both smoke APIs.
+
+**v1.1.3: dark-mode tables rendered dark.** DOCX table surfaces used theme
+`card`, which is near-black in the night theme, while Night reading mode
+paints cream sepia pages and forces `sepia_text` (dark brown) onto cells —
+dark-on-dark. Tables in sepia mode now use warm surfaces
+(`sepia_table`/`sepia_header`/`sepia_line`); dark-page mode keeps the mockup
+look (dark header cells with adapted light runs).
+
+**CI.** The instrumented smoke job is a matrix: API 23 (minSdk floor) and
+API 35 (modern scoped storage) so behavior is exercised at both ends.
+
+**v1.1.4: PPTX opened wrong, gaps slimmed, reading mode.** User testing on a
+real device: "slides or pptx file are not opening". Root cause: the slide-part
+filter matched any entry starting `ppt/slides/slide`, so every real package's
+`ppt/slides/slideLayouts/…` and `ppt/slides/slideMasters/…` were parsed as
+slides — decks opened as blank/layout pages and hit the 256-slide cut before
+the real slides. The filter now matches exactly `ppt/slides/slideN.xml`
+(regex), with an instrumented `PptxParserTest` that assembles a deck (layouts,
+masters and out-of-order slides) in memory and asserts only real slides parse.
+Alongside: bullets now come from `buChar`/`buAutoNum` instead of defaulting on,
+table-cell text accumulates into its cell (it was being dropped), and the
+paragraph indent level is read from `a:pPr@lvl` (attribute, not element).
+
+**v1.1.4: page gaps and reading mode.** The 12dp gap between DOCX pages and
+between slides became 5dp ("make it slimmer"). Settings → Supported formats
+now lists PPTX. Reading mode (footer book icon, persisted in `Prefs`): hides
+the header — file name, search, favorite, share — for distraction-free
+reading; the footer with the page/slide indicator and the toggle itself stays
+visible (Markdown keeps the footer bar for this reason), find closes if open,
+and the mode never applies while loading or on errors so Back stays reachable.
+System Back still exits the viewer.
+
+**v1.1.5: bring page endings closer.** User confirmed the visible gap between
+page 1 and page 2 still felt too large. Set one 2dp vertical `PAGE_GAP_DP`
+for the DOCX page cards and PowerPoint slides. PDF pages had a separate
+14dp top margin (shared with their 14dp side gutter); split out
+`doc_page_gap=2dp` so PDF pages also sit closer without narrowing the page's
+side margins. Keep the subtle page boundary and preserve the existing
+horizontal inset.
+
+**v1.1.6: PDF find and PPTX opening failures.** PDF search now decodes
+standards-compliant zlib-wrapped `/FlateDecode` streams first (retaining a
+raw-DEFLATE fallback), reads `/F1 12 Tf` font selections correctly so
+`/ToUnicode` CMaps are actually applied, and expands bounded PDF 1.5+ object
+streams. Search waits briefly for the query to settle, cancels stale requests,
+and serializes the one-time PDF text extraction so fast typing cannot publish
+an old result or trigger duplicate full-document parses. Regression tests
+cover compressed streams, Type0 fonts/CMaps, object streams, and the real
+repository PDF through a `file://` URI.
+
+PPTX was parsed but could crash while drawing: the light slide background
+passed `Color.WHITE` (a color value) to `ContextCompat.getColor` (which expects
+a resource id), and run font sizes in points were multiplied directly by
+pixels-per-EMU, reducing all text to effectively zero pixels. The background
+now uses the literal color directly; points convert to EMUs before scaling.
+Instrumented tests open the real repository deck from a file URI and render a
+slide to verify visible text pixels, in addition to the existing slide-part
+filter test.

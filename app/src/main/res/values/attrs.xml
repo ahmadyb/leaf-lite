@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- com.leaflite.viewer.ui.widgets.SwitchRow -->
+    <declare-styleable name="SwitchRow">
+        <attr name="label" format="string" />
+        <attr name="subLabel" format="string" />
+        <attr name="checked" format="boolean" />
+    </declare-styleable>
+
+    <!-- com.leaflite.viewer.ui.widgets.BottomTabBar -->
+    <declare-styleable name="BottomTabBar">
+        <attr name="selectedTab" format="enum">
+            <enum name="library" value="0" />
+            <enum name="starred" value="1" />
+            <enum name="settings" value="2" />
+        </attr>
+    </declare-styleable>
+</resources>
